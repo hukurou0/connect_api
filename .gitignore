@@ -11,7 +11,8 @@ instance/
 __pycache__/
 
 #その他
-shogo07xx.py
+post_test.py
+pack_datetime_time.py
 
 
 
