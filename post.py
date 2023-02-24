@@ -11,7 +11,7 @@ json_data = {
             "department":"1"
         }    
 
-#POST送信(Test)
+#POST送信
 response = requests.post(
     url,
     json = json.dumps(json_data)    #dataを指定する
