@@ -8,7 +8,7 @@ url = "http://127.0.0.1:5000/api/signup"
 json_data = {
             "username":"aa",
             "password":"aa",
-            "department":"1"
+            "department":"1",
         }    
 
 #POST送信
