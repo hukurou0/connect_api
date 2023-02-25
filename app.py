@@ -11,6 +11,7 @@ import os
 from time import time
 from datetime import datetime, date,timedelta
 import json
+#from flask_cors import CORS
 
 #必要な準備
 app = Flask(__name__)
@@ -19,6 +20,13 @@ app.config['SECRET_KEY'] = secret.SECRET_KEY.SECRET_KEY
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
+
+@app.after_request
+def after_request(response):
+  response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
+  response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+  response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+  return response
 
 @login_manager.user_loader
 def load_user(user_id):
