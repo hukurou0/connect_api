@@ -69,11 +69,11 @@ def signup():
         password = json_data["password"]
         department_id = json_data["department"]
         try:
-            #id = get_key("user")
-            user = User(username=username, password=generate_password_hash(password, method="sha256"), department_id = department_id,mail = "ss")
+            id = get_key("user")
+            user = User(id=id, username=username, password=generate_password_hash(password, method="sha256"), department_id = department_id,mail = "ss")
             db.session.add(user)
             db.session.commit()
-            #increment_key("user")
+            increment_key("user")
             return make_response()
         except exc.IntegrityError:
             return make_response(201)
