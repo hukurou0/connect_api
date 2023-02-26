@@ -40,7 +40,7 @@ def load_user(user_id):
 def unauthorized():
     return redirect('/login')
  
-def generate_star(difficulty):
+def generate_star(difficulty: int) -> str:
     star = ""
     for _ in range(0,difficulty):
         star += "★"
@@ -48,7 +48,7 @@ def generate_star(difficulty):
         star += "☆" 
     return star    
   
-def make_response(status_code=200,data={}):
+def make_response(status_code:int =200, data:dict ={}):
     response_dic = {} 
     response_dic["status_code"] = status_code
     response_dic["data"] = data
@@ -79,7 +79,7 @@ def signup():
         department_id = json_data["department"]
         try:
             id = get_key("user")
-            user = User(id = id,username=username, password=generate_password_hash(password, method="sha256"), department_id = department_id,mail = "ss")
+            user = User(id=id, username=username, password=generate_password_hash(password, method="sha256"), department_id = department_id,mail = "ss")
             db.session.add(user)
             db.session.commit()
             increment_key("user")
@@ -87,8 +87,8 @@ def signup():
         except exc.IntegrityError:
             return make_response(201)
         
-
     
+
 
             
 if __name__=='__main__':
