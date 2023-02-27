@@ -95,7 +95,7 @@ def signup():
         except exc.IntegrityError:
             return make_response(201)
         
-@app.route("/api/getSubjects", methods=["GET"])
+@app.route("/api/taken/getSubjects", methods=["GET"])
 #!@login_required
 def getSubjets():
     user = current_user 
