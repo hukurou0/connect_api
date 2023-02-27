@@ -102,8 +102,8 @@ def getSubjetsByTaken():
     user = current_user_not_login() #テスト環境用
     days = ['mon','tue','wed','thu','fri']
     periods = ['1','2','3','4','5']
-    # when[i]に対する現履修中科目(taken_subject)の検索(in句)のために使用
-    now_subject_ids=[t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
+    # 現ログインユーザーの when[i] に対する 履修中科目(taken_subject) の検索(in句) のために使用
+    taken_now_subject_ids=[t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
     if request.method == "GET": 
         # when[i]: 曜日時限, is_taken: when[i]に対して履修中の科目が存在するか否か
         # subject_ids[i]: [when[i]に対する現履修中科目id, ..., 〃] (taken_subject_ids[∃j]を優先), subject_names[i]: [when[i]に対する現履修中科目名, ..., 〃] (taken_subject_ids[∃j]に対応するものを優先)  
@@ -111,7 +111,7 @@ def getSubjetsByTaken():
         for period in periods:
             for day in days:
                 when.append(f'{day}{period}')
-                taken_subject = Subject.query.filter(Subject.id.in_(now_subject_ids), Subject.department_id==user.department_id, Subject.day==day, Subject.period==period).one_or_none()
+                taken_subject = Subject.query.filter(Subject.id.in_(taken_now_subject_ids), Subject.day==day, Subject.period==period).one_or_none()
                 when_i_subjects = Subject.query.filter_by(department_id=user.department_id, day=day, period=period).all()
                 if(taken_subject is None):
                     is_taken.append("False")
