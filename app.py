@@ -97,7 +97,7 @@ def signup():
         
 @app.route("/api/taken/getSubjects", methods=["GET"])
 #!@login_required
-def getSubjets():
+def getSubjetsByTaken():
     user = current_user 
     user = current_user_not_login() #テスト環境用
     days = ['mon','tue','wed','thu','fri']
