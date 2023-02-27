@@ -12,10 +12,18 @@ import os
 from time import time
 from datetime import datetime, date, timedelta
 import json
+from typing import Union
 #from flask_cors import CORS
 from database_defined import app, db, get_key, increment_key
 from database_defined import User, Admin, User_login, OTP_table, Task, Old_task, Gakka, Subject, Taken, Task_regist, Task_regist_kind, Manage_primary_key
 
+
+#! ログインせずにテストをしたい時のための関数。目的の関数の @login_required を 装飾付きコメントアウト「#!」をしてテストすること (∵検索のためのマーカー設置) 
+#! 本番環境用に移行させたいときは必ず #!で検索をかけ @login_required のコメントアウトを解除すること。 
+def current_user_not_login() -> Union[None, User]:
+    #! return  #本番環境用   
+    current_user_ = User.query.filter_by(id=1).one()
+    return current_user_  #テスト環境用 
 
 #必要な準備
 ctx = app.app_context()
@@ -87,8 +95,61 @@ def signup():
         except exc.IntegrityError:
             return make_response(201)
         
-    
-
+@app.route("/api/getSubjects", methods=["GET"])
+#!@login_required
+def getSubjets():
+    user = current_user 
+    user = current_user_not_login() #テスト環境用
+    days = ['mon','tue','wed','thu','fri']
+    periods = ['1','2','3','4','5']
+    # when[i]に対する現履修中科目(taken_subject)の検索(in句)のために使用
+    now_subject_ids=[t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
+    if request.method == "GET": 
+        # when[i]: 曜日時限, is_taken: when[i]に対して履修中の科目が存在するか否か
+        # subject_ids[i]: [when[i]に対する現履修中科目id, ..., 〃] (taken_subject_ids[∃j]を優先), subject_names[i]: [when[i]に対する現履修中科目名, ..., 〃] (taken_subject_ids[∃j]に対応するものを優先)  
+        when, is_taken, subject_ids, subject_names = [], [], [], []  # dataとしてクライアントに渡す要素
+        for period in periods:
+            for day in days:
+                when.append(f'{day}{period}')
+                taken_subject = Subject.query.filter(Subject.id.in_(now_subject_ids), Subject.department_id==user.department_id, Subject.day==day, Subject.period==period).one_or_none()
+                when_i_subjects = Subject.query.filter_by(department_id=user.department_id, day=day, period=period).all()
+                if(taken_subject is None):
+                    is_taken.append("False")
+                else:
+                    is_taken.append("True")
+                    # 既に履修登録していた課題が配列の添字最小となるように移動.
+                    when_i_subjects.insert(0, taken_subject)
+                    when_i_subjects = list(set(when_i_subjects))
+                # subject_names: ["空きコマ", Union["履修中科目名", "other0"], other1, ..., otherN]
+                subject_ids.append(['0'] + [f'{s.id}' for s in when_i_subjects])
+                subject_names.append(["空きコマ"] + [s.subject_name for s in when_i_subjects])
+        data = {
+            "when" : when,
+            "id" : subject_ids,
+            "name" : subject_names, 
+            "is_taken" : is_taken
+        }
+        return make_response(200,data)
+      
+@app.route("/api/taken", methods=["POST"])
+@login_required
+def taken():
+    user = current_user
+    if request.method == "POST": 
+        json_data = json.loads(request.get_json())
+        subject_ids = json_data["id"]
+        try:
+            Taken.query.filter_by(user_id=user.id).delete()
+            new_taken_all = []
+            for subject_id in subject_ids:
+                if(subject_id!=0):
+                    new_taken = Taken(user_id=user.id, subject_id=subject_id)
+                    new_taken_all.append(new_taken)
+            db.session.add_all(new_taken_all)
+            db.commit()
+            return make_response()
+        except exc.IntegrityError:
+            return make_response(201)   
 
             
 if __name__=='__main__':
