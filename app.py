@@ -21,6 +21,7 @@ from database_defined import User, Admin, User_login, OTP_table, Task, Old_task,
 ctx = app.app_context()
 ctx.push()
 app = current_app
+#CORS(app)
 
 #ログイン機能に必要な準備
 login_manager = LoginManager()
