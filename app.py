@@ -1,15 +1,9 @@
-import flask
 from flask import current_app
-from flask import Flask,session
-from flask import render_template,request,redirect,url_for,jsonify
-from flask_sqlalchemy import SQLAlchemy
+from flask import request,redirect,url_for,jsonify
 from sqlalchemy import exc
 import re
-from flask_login import UserMixin,LoginManager, login_user, logout_user, login_required, current_user
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-import secret
-import os
-from time import time
 from datetime import datetime, date, timedelta
 import json
 #from flask_cors import CORS
