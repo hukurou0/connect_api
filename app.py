@@ -12,7 +12,7 @@ import os
 from time import time
 from datetime import datetime, date, timedelta
 import json
-from flask_cors import CORS
+#from flask_cors import CORS
 from database_defined import app, db, get_key, increment_key
 from database_defined import User, Admin, User_login, OTP_table, Task, Old_task, Gakka, Subject, Taken, Task_regist, Task_regist_kind, Manage_primary_key
 
