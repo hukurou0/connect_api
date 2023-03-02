@@ -2,13 +2,11 @@ import requests
 import json
 
 #POST先URL
-url = "http://127.0.0.1:5000/api/signup"
+url = "http://127.0.0.1:5000/api/taken"
 
 #JSON形式のデータ
 json_data = {
-            "username":"aa",
-            "password":"aa",
-            "department":"1",
+            "id":[1,2,3]
         }    
 
 #POST送信(Test)

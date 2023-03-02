@@ -127,10 +127,10 @@ def getSubjet():
         return make_response(200,data)
 
 @app.route("/api/taken", methods=["POST"])
-@login_required
+#@login_required
 def taken():
     user = current_user
-    user = current_user_need_not_login
+    user = current_user_need_not_login()
     if request.method == "POST": 
         json_data = json.loads(request.get_json())
         subject_ids = json_data["id"]
@@ -142,7 +142,7 @@ def taken():
                     new_taken = Taken(user_id=user.id, subject_id=subject_id)
                     new_taken_all.append(new_taken)
             db.session.add_all(new_taken_all)
-            db.commit()
+            db.session.commit()
             return make_response()
         except exc.IntegrityError:
             return make_response(201)
