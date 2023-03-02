@@ -90,11 +90,11 @@ def signup():
         except exc.IntegrityError:
             return make_response(201)
 
-@app.route("/api/Subjects", methods=["GET"])
-@login_required
+@app.route("/api/getSubjects", methods=["GET"])
+#@login_required
 def getSubjet():
     user = current_user
-    user = current_user_need_not_login
+    user = current_user_need_not_login()
     days = ['mon','tue','wed','thu','fri']
     periods = ['1','2','3','4','5']
     # when[i]に対する現履修中科目(taken_subject)の検索(in句)のために使用
@@ -106,7 +106,7 @@ def getSubjet():
         for period in periods:
             for day in days:
                 when.append(f'{day}{period}')
-                taken_subject = Subject.query.filter_by(id.in_(now_subject_ids), department_id=user.department_id, day=day, period=period).one_or_none()
+                taken_subject = Subject.query.filter(Subject.id.in_(now_subject_ids), Subject.department_id==user.department_id, Subject.day==day, Subject.period==period).one_or_none()
                 when_i_subjects = Subject.query.filter_by(department_id=user.department_id, day=day, period=period).all()
                 if(taken_subject is None):
                     is_taken.append("False")
@@ -117,7 +117,7 @@ def getSubjet():
                     when_i_subjects = list(set(when_i_subjects))
                 # subject_names: ["空きコマ", Union["履修中科目名", "other0"], other1, ..., otherN]
                 subject_ids.append(['0'] + [f'{s.id}' for s in when_i_subjects])
-                subject_names.append(["空きコマ"] + [s.name for s in when_i_subjects])
+                subject_names.append(["空きコマ"] + [s.subject_name for s in when_i_subjects])
         data = {
             "when" : when,
             "id" : subject_ids,
