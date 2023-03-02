@@ -2,15 +2,17 @@ from flask import current_app
 from flask import request,redirect,url_for,jsonify
 from sqlalchemy import exc, func
 import re
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_login import LoginManager, login_user, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
 import json
 #from flask_cors import CORS
 from database_defined import app, db, get_key, increment_key
-from database_defined import User, Admin, User_login, OTP_table, Task, Old_task, Gakka, Subject, Taken, Task_regist, Task_regist_kind, Manage_primary_key
+from database_defined import (User, Admin, User_login, OTP_table, Gakka, Subject, Taken, 
+                               Task, Old_task, Task_regist, Task_regist_kind, Manage_primary_key)
 from typing import Union
 from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str
+from pack_decorater import  QueueOption, login_required, current_user_need_not_login, multiple_control, expel_freeze_account
 
 #必要な準備
 ctx = app.app_context()
@@ -35,13 +37,6 @@ def load_user(user_id):
 @login_manager.unauthorized_handler
 def unauthorized():
     return redirect('/login')
-
-#! ログインせずにテストをしたい時のための関数。目的の関数の @login_required を 装飾付きコメントアウト「#!」をしてテストすること (∵検索のためのマーカー設置) 
-#! 本番環境用に移行させたいときは必ず #!で検索をかけ @login_required のコメントアウトを解除すること。 
-def current_user_need_not_login() -> Union[None, User]:
-    #! return  #本番環境用   
-    current_user_ = User.query.filter_by(id=1).one()
-    return current_user_  #テスト環境用 
 
 def generate_star(difficulty: int) -> str:
     star = ""
@@ -91,7 +86,7 @@ def signup():
             return make_response(201)
 
 @app.route("/api/getSubjects", methods=["GET"])
-#@login_required
+@login_required
 def getSubjet():
     user = current_user
     user = current_user_need_not_login()
@@ -127,7 +122,7 @@ def getSubjet():
         return make_response(200,data)
 
 @app.route("/api/taken", methods=["POST"])
-#@login_required
+@login_required
 def taken():
     user = current_user
     user = current_user_need_not_login()
@@ -135,7 +130,7 @@ def taken():
         json_data = json.loads(request.get_json())
         subject_ids = json_data["id"]
         try:
-            Taken.query.filter_by(user_id=user.id).delete()
+            Taken.query.filter_by(user_id=user.id).delete() # レコードが存在しない場合は何も起こらない
             new_taken_all = []
             for subject_id in subject_ids:
                 if(subject_id!=0):
@@ -149,7 +144,7 @@ def taken():
 
 #課題登録機能_段階1(GET)
 @app.route("/api/task/regist/getSubjects", methods=["GET"])
-#!@login_required
+@login_required
 def taskRegistGetSubject():
     user = current_user
     user = current_user_need_not_login() 
@@ -164,7 +159,7 @@ def taskRegistGetSubject():
 
 #課題登録機能_段階1(POST)
 @app.route("/api/task/regist/check", methods=["POST"])
-#!@login_required
+@login_required
 def taskRegistCheck():
     user = current_user
     user = current_user_need_not_login() 
@@ -173,7 +168,8 @@ def taskRegistCheck():
         subject_id = json_data["subject_id"]
         deadline_month = json_data["deadline_month"]
         deadline_day = json_data["deadline_day"]
-        # 現在の月より締切の月の方が過去に存在するとき、1年繰り上げる。
+        # deadline_day = json_data["deadline_day"]
+        # 現在の月より締切の月の方が過去に存在するとき、1年繰り上げる
         today_year = date.today().year() if(deadline_month < date.today().month) else date.today().year+1
         serial = get_int_serial(today_year=today_year, deadline_month=deadline_month, deadline_day=deadline_day)
         tasks = Task.query.filter_by(subject_id=subject_id, serial=serial).all()
@@ -185,7 +181,7 @@ def taskRegistCheck():
                 "subject_name" : t.subject_name,
                 "summary" : t.summary,
                 "detail" : t.detail,
-                "deadline" : f"{deadline_month}/{deadline_day}"
+                "deadline" : f"{deadline_month}/{deadline_day}" 
             }
         data = {
             "tasks_id" : tasks_id,
@@ -195,7 +191,7 @@ def taskRegistCheck():
 
 #課題登録機能_段階2(POST1)
 @app.route("/api/task/regist/duplication", methods=["POST"])
-#!@login_required
+@login_required
 def taskRegistDuplication():
     user = current_user
     user = current_user_need_not_login()
@@ -209,7 +205,7 @@ def taskRegistDuplication():
 
 #課題登録機能_段階2(POST2)
 @app.route("/api/task/regist/new", methods=["POST"])
-#!@login_required
+@login_required
 def taskRegistNew():
     user = current_user
     user = current_user_need_not_login()
@@ -218,26 +214,33 @@ def taskRegistNew():
             json_data = json.loads(request.get_json())
             subject_id = json_data["subject_id"]
             deadline_month = json_data["deadline_month"]
+            #!today_year = json_data["deadline_year"]
+            today_year = date.today().year() if(deadline_month < date.today().month) else date.today().year + 1  #!unused予定
             summary = json_data["summary"]
             deadline_day = json_data["deadline_day"]
             detail = json_data["detail"]
             difficulty = json_data["difficulty"]
-            today_year = date.today().year() if(deadline_month < date.today().month) else date.today().year+1
-            serial = get_int_serial(today_year=today_year, deadline_month=deadline_month, deadline_day=deadline_day)
-            task = Task(user_num=user.id, subject_id=subject_id, detail=detail, summary=summary, serial=serial, difficulty=difficulty)
-            db.session.add(task)
-            db.session.commit()
-            task_id = db.session.query(func.max(Task.id)).one()[0]
-            task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=1)
-            db.session.add(task_regist)
-            db.session.commit()
+            serial = get_int_serial(today_year, today_year=today_year, deadline_month=deadline_month, deadline_day=deadline_day)
+            task_data = [user.id, subject_id, detail, summary, serial, difficulty]
+            task_regist_data = [user.id, 1]
+            @multiple_control(QueueOption.singleQueue)  # 悲観ロック
+            def add_Task_and_Task_regist(task_data_:list, task_regist_data_:list):
+                t, r = task_data_, task_regist_data_
+                task = Task(user_num=t[0], subject_id=t[1], detail=t[2], summary=t[3], serial=t[4], difficulty=t[5])
+                db.session.add(task)
+                db.session.commit()
+                task_id = db.session.query(func.max(Task.id)).one()[0]  
+                task_regist = Task_regist(user_id=r[0], task_id=task_id, kind=r[1])
+                db.session.add(task_regist)
+                db.session.commit()
+            add_Task_and_Task_regist(task_data, task_regist_data)
             return make_response()
         except exc.DataError:  #データ長のはみ出し
             return make_response(3)
 
 #課題削除機能(GET)
 @app.route("/api/task/getTasks", methods=["GET"])
-#!@login_required
+@login_required
 def taskGetTasks():
     user = current_user
     user = current_user_need_not_login()
@@ -262,7 +265,7 @@ def taskGetTasks():
 
 #課題削除機能(POST)
 @app.route("/api/task/delete", methods=["POST"])
-#!@login_required
+@login_required
 def taskDelete():
     if request.method == "POST": 
         json_data = json.loads(request.get_json())
@@ -273,4 +276,4 @@ def taskDelete():
 
             
 if __name__=='__main__':
-    app.run(debug=True)
+    app.run(debug=True, threaded=True)

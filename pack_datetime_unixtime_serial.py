@@ -2,6 +2,12 @@ from time import time
 from datetime import datetime, date, timedelta
 from typing import Union
 
+# 時間制御にまつわる変数[s]
+class TimeBase():
+    totp_valid_length = 75 
+    lastlogin_ut_default = time() - 7200  # ↓のminus値(-3600)より小さければ良い 
+    now_minus_login_valid_ut = time() - 3600  # 1時間
+
 # ut, datetime 端数切捨て関数
 def round_unixtime_datetime(t : Union[float, datetime]) -> Union[int, datetime]:
     if(isinstance(t, float)):
@@ -35,7 +41,7 @@ def get_int_serial(today_year = date.today().year,today_month = date.today().mon
     serial = dt.days + 1
     return serial
 
-#シリアル値を "Year/Month/Date" の形に変換
+#シリアル値を "YY/MM/DD" の形に変換
 def serial_to_str(serial):
     str_datetime = (datetime(1899,12,30) + timedelta(serial)).strftime('%Y/%m/%d %H:%M:%S')
     return str_datetime
