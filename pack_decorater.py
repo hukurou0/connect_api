@@ -10,18 +10,18 @@ from pack_datetime_unixtime_serial import TimeBase
 
 # 多重実行用のキュー
 class QueueOption:
-    singleQueue = Queue(maxsize=1)  # 最大同接数: 1
+    singleQueue = Queue(maxsize=1)           # 最大同接数: 1
 
 # 多重実行(排他)制御の関数デコレータ (悲観ロック)
-def multiple_control(q: Queue):              # FIFO
+def multiple_control(q: Queue):              # FIFO (not stack)
     def _multiple_control(f):                # f は関数
         @wraps(f)
         def _wrapper(*args,**kwargs):
-            q.put(time())                    # キューの中身を1つtime()で埋める
+            q.put(time(), timeout=None)      # キューの中身を1つtime()で埋める. block=True(スロットが満杯のとき例外を発生させず遅延させる), Timeout=None(タイムアウトはしない).
             result = f(*args,**kwargs)
-            q.get()                          # キューを空(中身を削除)にする
-            q.task_done()                    # タスク完了の通知
-            return result
+            q.get()                          # キューを空(中身を削除)にする. block=True, Timeout=None.
+            q.task_done()                    # タスク完了(中身が空になったこと)の通知
+            return result                    # ここで対象関数を実行させないと、例外発生. ここで対象関数呼び出しでも正常に動作する.
         return _wrapper                      
     return _multiple_control
 
