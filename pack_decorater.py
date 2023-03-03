@@ -18,7 +18,7 @@ def multiple_control(q: Queue):              # FIFO (not stack)
         @wraps(f)
         def _wrapper(*args,**kwargs):
             q.put(time(), timeout=None)      # キューの中身を1つtime()で埋める. block=True(スロットが満杯のとき例外を発生させず遅延させる), Timeout=None(タイムアウトはしない).
-            result = f(*args,**kwargs)
+            result = f(*args,**kwargs)       # 排他制御中に関数を実行させたいので、戻り値を記憶.
             q.get()                          # キューを空(中身を削除)にする. block=True, Timeout=None.
             q.task_done()                    # タスク完了(中身が空になったこと)の通知
             return result                    # ここで対象関数を実行させないと、例外発生. ここで対象関数を呼び出しても正常に動作する.
@@ -70,7 +70,7 @@ def expel_not_admin(storng_restriction: bool = False):  # 引数は1つまで指
                 return redirect(url_for("admin_login1"))
             elif(adminA.privilege==2):
                 return f(*args, **kwargs)
-        return _wrapper                                 # 関数実行 g() を返すのではなく 関数ポインタ g を返す  
+        return _wrapper                                 # 関数実行 g() を返すのではなく 関数ポインタ g を返す 
     return _expel_not_admin                             # 同上
 
 # クリエイトモードでない場合
@@ -111,10 +111,11 @@ def logout_by_time_out(f):
 
 
 
-#*----------------------------------((解説))-------------------------------------------*#
+#*--------------------------------------------------------------((解説))----------------------------------------------------------------------------------------*#
 # ((cf.)) **kwrags の本質(*argsの要素に辞書を格納する方法では補完できない理由)
 # https://noauto-nolife.com/post/django-args-kwargs/#:~:text=%E7%B5%90%E8%AB%96%E3%81%8B%E3%82%89%E8%A8%80%E3%81%86%E3%81%A8%E3%80%81%20%2Aargs,%E3%81%AF%E3%82%AD%E3%83%BC%E3%83%AF%E3%83%BC%E3%83%89%E6%9C%AA%E6%8C%87%E5%AE%9A%E3%81%AE%E5%BC%95%E6%95%B0%E3%81%AE%E3%83%AA%E3%82%B9%E3%83%88%E3%80%81%20%2A%2Akwargs%20%E3%81%AF%E3%82%AD%E3%83%BC%E3%83%AF%E3%83%BC%E3%83%89%E3%81%8C%E6%8C%87%E5%AE%9A%E3%81%95%E3%82%8C%E3%81%9F%E5%BC%95%E6%95%B0%E3%81%AE%E8%BE%9E%E6%9B%B8%E3%82%92%E6%89%8B%E3%81%AB%E5%85%A5%E3%82%8C%E3%82%8B%E3%81%9F%E3%82%81%E3%81%AE%E3%82%82%E3%81%AE%E3%81%A7%E3%81%82%E3%82%8B%E3%80%82
 # 関数デコレータは先に宣言したものから作用されていく (@f1; @f2; f(); ⇔ f1∘f2∘f();)
+# ゆえに f の返り値はより低階層の関数ポインタを戻り値として参照し、低階層で目的の処理の記述を行う(∵まず高階層の関数が参照されるため).
 """ 
 @app.route("/admin", methods=["GET", "POST"])   # ルーティング修飾
 @login_required                                 # current_userを取得する((依存元@1: ログイン者のuser_id取得のため))
@@ -124,3 +125,7 @@ def logout_by_time_out(f):
 def admin_top():                                # 装飾先関数
     processing                                  # 処理内容
 """
+# 関数デコレータ f を作用させた関数 g の挙動は、構造こそ単純に f∘g と書いているが、実際は f() のみ実行される.
+# f∘g と表せるのは、関数 f() の引数が 関数(g)であること. すなわち f(g()) という構造をとることを明示しているためである.
+# ∴ 戻り値を持つ関数 g() にデコレータ f を作用させ戻り値を g() と同じにしたいのであれば、f() 内で 引数関数(g)を実行させること, 
+# f() の戻り値が g() となるように 引数関数の戻り地を記憶しておくこと が求められる. (だから、retrun文で引数関数を実行させている場合が多いのだ!)
