@@ -118,7 +118,7 @@ def logout_by_time_out(f):
 # 関数デコレータは先に宣言したものから作用されていく (@f1; @f2; f(); ⇔ f1∘f2∘f();)
 """ 
 @app.route("/admin", methods=["GET", "POST"])   # ルーティング修飾
-@login_required                                 # current_userを取得するため((依存元@1: ログイン者のuser_id取得のため))
+@login_required                                 # current_userを取得する((依存元@1: ログイン者のuser_id取得のため))
 @logout_by_time_out                             # 時間経過状況によりログアウト((依存先@1))((依存元@2))
 @login_required                                 # ログアウトしているならば制限する((依存先@2))
 @expel_not_admin()                              # 管理者を弾く関数修飾((依存先@1)). 引数が関数でないため "()" をつける. 
