@@ -21,7 +21,7 @@ def multiple_control(q: Queue):              # FIFO (not stack)
             result = f(*args,**kwargs)
             q.get()                          # キューを空(中身を削除)にする. block=True, Timeout=None.
             q.task_done()                    # タスク完了(中身が空になったこと)の通知
-            return result                    # ここで対象関数を実行させないと、例外発生. ここで対象関数呼び出しでも正常に動作する.
+            return result                    # ここで対象関数を実行させないと、例外発生. ここで対象関数を呼び出しても正常に動作する.
         return _wrapper                      
     return _multiple_control
 
