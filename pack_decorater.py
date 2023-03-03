@@ -15,11 +15,11 @@ class QueueOption:
 
 # 多重実行(排他)制御の関数デコレータ (悲観ロック)
 def multiple_control(q: Queue):              # FIFO
-    def _multiple_control(func):
-        @wraps(func)
+    def _multiple_control(f):                # f は関数
+        @wraps(f)
         def _wrapper(*args,**kwargs):
             q.put(time())                    # キューの中身を1つtime()で埋める
-            result = func(*args,**kwargs)
+            result = f(*args,**kwargs)
             q.get()                          # キューを空(中身を削除)にする
             q.task_done()                    # タスク完了の通知
             return result
@@ -32,23 +32,23 @@ def current_user_need_not_login() -> None | User:
     current_user_ = User.query.filter_by(id=1).one()
     return current_user_  
 
-# 未ログイン者を弾く関数デコレータ (by cookie), flask_login モジュールのものと全く同じ
-def login_required(func):
-    @wraps(func)
+# 未ログイン者を弾く関数デコレータ. flask_login モジュールのものと全く同じ. 渡す値のみの記述ゆえここだけではcookieに関わらない.
+def login_required(f):
+    @wraps(f)
     def decorated_view(*args, **kwargs):
-        # return func(*args, **kwargs)  #! テスト環境用
+        return f(*args, **kwargs)  #! テスト環境用
         if current_app.login_manager._login_disabled:
-            return func(*args, **kwargs)
+            return f(*args, **kwargs)
         elif not current_user.is_authenticated:
             return current_app.login_manager.unauthorized()
-        return func(*args, **kwargs)
+        return f(*args, **kwargs)
     return decorated_view
     
 # 凍結アカウントを弾く関数デコレータ
-def expel_freeze_account(f):
+def expel_frozen_account(f):
     @wraps(f)
     def _wrapper(*args, **kwargs):
-        # return func(*args, **kwargs)  #! テスト環境用
+        return f(*args, **kwargs)  #! テスト環境用
         adminU = current_user
         if(adminU.login_possible==0):
             return redirect(url_for("freeze"))
