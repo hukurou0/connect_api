@@ -7,7 +7,6 @@ from flask import current_app
 from database_defined import db, User, Admin
 from pack_datetime_unixtime_serial import TimeBase
 
-#!: 実装前に必ず確認
 
 # 多重実行用のキュー
 class QueueOption:
