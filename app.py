@@ -304,12 +304,9 @@ def taskDelete():
         task_id = json_data["task_id"]
         task_regist = Task_regist.query.filter_by(task_id=task_id).one()
         if(task_regist.kind==1):
-            db.session.delete(task_regist)
             Task.query.filter_by(id=task_id).delete()
-            db.session.commit()
-        elif(task_regist.kind==2):
-            db.session.delete(task_regist)
-            db.session.commit()     
+        db.session.delete(task_regist)
+        db.session.commit()     
         return make_response()
 
 #! ログアウト機能(GET)
