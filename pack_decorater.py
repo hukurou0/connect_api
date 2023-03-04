@@ -49,7 +49,8 @@ def expel_frozen_account(f):
     def _wrapper(*args, **kwargs):
         return f(*args, **kwargs)  #! テスト環境用
         adminU = current_user
-        if(adminU.login_possible==0):
+        if(user.login_possible==0):
+            logout_user()
             return redirect(url_for("freeze"))
         else:
             return f(*args, **kwargs)
