@@ -27,7 +27,7 @@ def multiple_control(q: Queue):              # FIFO (not stack)
 
 # ユーザーIDが1のユーザーを返す (単体テスト用, ログイン不必要)
 def current_user_need_not_login() -> None | User:
-    # return  #!本番環境用   
+    # return current_user  #!本番環境用   
     current_user_ = User.query.filter_by(id=1).one()
     return current_user_  
 
@@ -104,7 +104,7 @@ def logout_by_time_out(f):
                 return redirect(url_for("admin_login1"))  
             else:
                 return redirect(url_for("signup"))
-        elif():
+        else:
             adminA.lastlogin_ut = time()
             db.session.commit()
             return f(*args, **kwargs)
