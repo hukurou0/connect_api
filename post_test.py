@@ -9,7 +9,7 @@ import json
 # POST先URL
 url = "http://127.0.0.1:5000/api/task/delete"
 
-#JSON形式のデータ(リクエスト用). 変数json_dataの格納値にドキュメントの {"data": data_value } (全ての部分)をコピペする.
+#JSON形式のデータ(リクエスト用). 変数json_dataの格納値にドキュメントの {"data": data_value } (全て)をコピペする.
 json_data = {
 	"data": {
 		"task_id": 1
