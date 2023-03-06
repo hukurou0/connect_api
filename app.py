@@ -346,8 +346,6 @@ def taskGetTask():
         }
         return make_response(200, data)
 
-# 課題表示機能(get) --Unit Tested
-
 #! ログアウト機能(get)
 @app.route("/api/logout", methods=["GET"])
 @login_required
