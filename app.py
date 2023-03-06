@@ -76,10 +76,10 @@ def signup():
         username = data["username"]
         password = data["password"]
         department_id = data["department"]
-        mail = data["mail"]
         try:
             id = get_key("user")
-            user = User(id=id, username=username, password=generate_password_hash(password, method="sha256"), department_id = department_id, mail = mail)
+            user = User(id=id, username=username, password=generate_password_hash(password, method="sha256"), \
+                        department_id = department_id)
             db.session.add(user)
             db.session.commit()
             increment_key("user")
