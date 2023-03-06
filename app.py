@@ -173,19 +173,17 @@ def taskRegistGetSubject():
     user = current_user
     user = current_user_need_not_login() 
     takens =  Taken.query.filter_by(user_id = user.id).all()
-    taken_subject_ids, taken_subject_names = [], []
+    takens = []
     for t in takens:
-        taken_subject_ids += [t.subject_id]
         subject = Subject.query.filter_by(id=t.subject_id).one()    
-        taken_subject_names += [subject.subject_name]
+        takens += [
+            {"name": subject.name, "id": t.subject_id}
+        ]
     if request.method == "GET":
-        data = {
-            "name" : taken_subject_names,
-            "id" : taken_subject_ids
-        }
+        data = takens
         return make_response(200,data)
 
-# 課題登録機能_段階1(POST) --Unit Tested
+# json_dataの変更 課題登録機能_段階1(POST) --Unit Tested
 @app.route("/api/task/regist/check", methods=["POST"])
 @login_required
 @expel_frozen_account
@@ -199,19 +197,19 @@ def taskRegistCheck():
         deadline_day = json_data["deadline_day"]
         deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
         tasks = Task.query.filter_by(subject_id=subject_id, serial=deadline_serial).all()
-        tasks_id = []
-        tasks_packs = {}
+        tasks_packs = []
         for t in tasks:
             s = Subject.query.filter_by(id = t.subject_id).one()
-            tasks_id += [t.id]
-            tasks_packs[t.id] = {
+            tasks_packs += [
+                {
+                "id": t.id,
                 "subject_name": s.subject_name,
                 "summary": t.summary,
                 "detail": t.detail,
                 "deadline": f"{deadline_month}/{deadline_day}" 
-            }
+                }
+            ]
         data = {
-            "tasks_id" : tasks_id,
             "tasks" : tasks_packs
         }
         return make_response(200, data)

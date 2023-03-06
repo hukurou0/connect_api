@@ -7,12 +7,15 @@ import json
 
 
 # POST先URL
-url = "http://127.0.0.1:5000/api/task/delete"
+url = "http://127.0.0.1:5000/api/task/regist/check"
 
 #JSON形式のデータ(リクエスト用). 変数json_dataの格納値にドキュメントの {"data": data_value } (全て)をコピペする.
 json_data = {
 	"data": {
-		"task_id": 1
+		"subject_id": 1,
+		"deadline_year": 2023,
+		"deadline_month": 4,
+		"deadline_day": 1
 	}
 }
 
