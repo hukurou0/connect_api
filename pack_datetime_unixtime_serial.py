@@ -2,7 +2,13 @@ from time import time
 from datetime import datetime, date, timedelta
 from typing import Union
 
-# ut, datetime 端数切捨て関数
+# 時間制御にまつわる変数[s]
+class TimeBase():
+    totp_valid_length = 75 
+    lastlogin_ut_default = time() - 3600  # ↓のminus値(-1800)より小さければ良い 
+    now_minus_login_valid_ut = time() - 1800  # 30分
+
+# ut, datetime 端数(小数点以下秒数)切捨て関数
 def round_unixtime_datetime(t : Union[float, datetime]) -> Union[int, datetime]:
     if(isinstance(t, float)):
         t = round(t)
@@ -35,9 +41,22 @@ def get_int_serial(today_year = date.today().year,today_month = date.today().mon
     serial = dt.days + 1
     return serial
 
-#シリアル値を "Year/Month/Date" の形に変換
-def serial_to_str(serial):
-    str_datetime = (datetime(1899,12,30) + timedelta(serial)).strftime('%Y/%m/%d %H:%M:%S')
+#シリアル値を "YY/MM/DD" ("YY/MM/DD HH:MM:SS") の形に変換.
+def serial_to_str(serial: Union[int, float]) -> str:
+    if(isinstance(serial, float)):
+        str_datetime = (datetime(1899,12,30) + timedelta(serial)).strftime('%Y/%m/%d %H:%M:%S')
+    elif(isinstance(serial, int)):
+        str_datetime = (datetime(1899,12,30) + timedelta(serial)).strftime('%Y/%m/%d')
     return str_datetime
-    
+
+if(__name__=="__main__"):
+    print(f'UT切り捨て値: {round_unixtime_datetime(time())}')
+    print(f'DateTime切り捨て値: {round_unixtime_datetime(datetime.today())}')
+    print(f'UT -> Datetime: {trans_unixtime_datetime(time())}')
+    print(f'Datetime -> UT: {trans_unixtime_datetime(datetime.today())}')
+    print(f'現時間シリアル値(float): {get_float_serial()}')
+    print(f'現時間シリアル値(int): {get_int_serial()}')
+    print(f'シリアル値 -> YY/MM/DD: {serial_to_str(get_int_serial())}')
+    print(f'シリアル値 -> YY/MM/DD HH:MM:SS: {serial_to_str(get_float_serial())}')
+
     
