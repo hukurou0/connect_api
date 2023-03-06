@@ -307,6 +307,41 @@ def taskDelete():
         db.session.delete(task_regist)
         db.session.commit()     
         return make_response()
+    
+# 課題表示機能(GET)
+@app.route("/api/task/getTasks", methods=["GET"])
+@login_required
+@expel_frozen_account
+def taskGetTask():
+    if request.method == "GET": 
+        #subject_id, deadline_year, deadline_month, deadline_day = 1, 2023, 4, 1
+        json_data = json.loads(request.get_json())
+        subject_id = json_data["subject_id"]
+        deadline_year = json_data["deadline_year"]
+        deadline_month = json_data["deadline_month"]
+        deadline_day = json_data["deadline_day"]
+        deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
+        tasks = Task.query.filter_by(subject_id=subject_id, serial=deadline_serial).all()
+        tasks_id, hard_ids = [], []
+        tasks_packs = {}
+        for t in tasks:
+            s = Subject.query.filter_by(id = t.subject_id).one()
+            if(t.difficulty==5 or t.serial < get_int_serial() + 3):
+                hard_ids += [t.id]
+            tasks_id += [t.id]
+            tasks_packs[t.id] = {
+                "subject_name": s.subject_name,
+                "summary": t.summary,
+                "detail": t.detail,
+                "deadline": f"{deadline_month}/{deadline_day}",
+                "difficulty": t.difficulty
+            }
+        data = {
+            "all_tasks_id": tasks_id,
+            "hard_tasks_id": hard_ids,
+            "tasks": tasks_packs
+        }
+        return make_response(200, data)
 
 #! ログアウト機能(GET)
 @app.route("/api/logout", methods=["GET"])
