@@ -311,7 +311,7 @@ def taskDelete():
         db.session.commit()     
         return make_response()
     
-# 課題表示機能(GET)
+# 課題表示機能(GET) --Unit Tested
 @app.route("/api/task/getTasks", methods=["GET"])
 @login_required
 @expel_frozen_account
