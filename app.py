@@ -268,8 +268,8 @@ def taskRegistNew():
         except exc.DataError:  #データ長のはみ出し
             return make_response(3)
 
-# 課題削除機能(get)、課題表示機能(get) --Unit Tested
-@app.route("/api/task/getTasks", methods=["GET"])
+# 課題削除機能(get) --Unit Tested
+@app.route("/api/user/getTasks", methods=["GET"])
 @login_required
 @expel_frozen_account
 def taskGetTasks():
@@ -296,7 +296,7 @@ def taskGetTasks():
         return make_response(200, data)
 
 # 課題削除機能(post) --Unit Tested
-@app.route("/api/task/delete", methods=["POST"])
+@app.route("/api/user/deleteTask", methods=["POST"])
 @login_required
 @expel_frozen_account
 def taskDelete():
@@ -310,6 +310,8 @@ def taskDelete():
         db.session.delete(task_regist)
         db.session.commit()     
         return make_response()
+
+# 課題表示機能(get) --Unit Tested
 
 #! ログアウト機能(get)
 @app.route("/api/logout", methods=["GET"])
