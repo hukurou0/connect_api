@@ -54,24 +54,23 @@ def make_response(status_code:int =200, data:dict ={}):
 def getDepartment():
     if request.method == "GET": 
         gakkas = Gakka.query.filter_by().all()
-        name = []
-        id = []
+        data = []
         for gakka in gakkas:
-            name.append(gakka.gakka)
-            id.append(gakka.id)
-        data = {
-            "name":name,
-            "id":id
-        }
+            dic = {}
+            dic["id"] = gakka.id
+            dic["name"] = gakka.gakka
+            data.append(dic)
+        print(data)
         return make_response(200,data)
     
 @app.route("/api/signup", methods=["POST"])
 def signup():
     if request.method == "POST": 
-        json_data = json.loads(request.get_json())
-        username = json_data["username"]
-        password = json_data["password"]
-        department_id = json_data["department"]
+        json_data = request.get_json()
+        data = json_data["data"]
+        username = data["username"]
+        password = data["password"]
+        department_id = data["department"]
         try:
             id = get_key("user")
             user = User(id=id, username=username, password=generate_password_hash(password, method="sha256"), department_id = department_id,mail = "ss")
