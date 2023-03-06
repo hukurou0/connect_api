@@ -76,6 +76,7 @@ def signup():
         username = data["username"]
         password = data["password"]
         department_id = data["department"]
+        mail = data["mail"]
         try:
             id = get_key("user")
             user = User(id=id, username=username, password=generate_password_hash(password, method="sha256"), department_id = department_id, mail = mail)
@@ -86,8 +87,8 @@ def signup():
         except exc.IntegrityError:
             return make_response(201)
 
-# ユーザー登録情報変更機能(POST) --Unit Tested
-@app.route("/api/modify_user", methods=["POST"])
+# 所属学科変更機能(POST) --Unit Tested
+@app.route("/api/user/modifyDepartment", methods=["POST"])
 @login_required
 @expel_frozen_account
 def modify_user():
