@@ -53,7 +53,7 @@ def make_response(status_code:int =200, data:dict ={}):
     response = jsonify(response_dic)
     return response
 
-# サインアップ機能(GET), ユーザー情報編集機能(GET) --Unit Tested 
+# サインアップ機能(get), ユーザー情報編集機能(get) --Unit Tested 
 @app.route("/api/getDepartment", methods=["GET"])
 def getDepartment():
     if request.method == "GET": 
@@ -67,7 +67,7 @@ def getDepartment():
         print(data)
         return make_response(200,data)
 
-# サインアップ機能(POST) --Unit Tested    
+# サインアップ機能(post) --Unit Tested    
 @app.route("/api/signup", methods=["POST"])
 def signup():
     if request.method == "POST": 
@@ -87,7 +87,7 @@ def signup():
         except exc.IntegrityError:
             return make_response(201)
 
-# 所属学科変更機能(POST) --Unit Tested
+# 所属学科変更機能(post) --Unit Tested
 @app.route("/api/user/modifyDepartment", methods=["POST"])
 @login_required
 @expel_frozen_account
@@ -95,8 +95,9 @@ def modify_user():
     user = current_user
     user = current_user_need_not_login()
     if request.method == "POST": 
-        json_data = json.loads(request.get_json())
-        department_id = json_data["department"]
+        json_data = request.get_json()
+        data = json_data["data"]
+        department_id = data["department"]
         try:
             user.department_id = department_id
             db.session.commit()
@@ -104,7 +105,7 @@ def modify_user():
         except exc.IntegrityError:
             return make_response(201)        
 
-# 履修登録機能(GET) --Unit Tested
+# 履修登録機能(get) --Unit Tested
 @app.route("/api/getSubjects", methods=["GET"])
 @login_required
 @expel_frozen_account
@@ -142,7 +143,7 @@ def getSubjet():
         }
         return make_response(200,data)
 
-# 履修登録機能(POST) --Unit Tested
+# 履修登録機能(post) --Unit Tested
 @app.route("/api/taken", methods=["POST"])
 @login_required
 @expel_frozen_account
@@ -150,8 +151,9 @@ def taken():
     user = current_user
     user = current_user_need_not_login()
     if request.method == "POST": 
-        json_data = json.loads(request.get_json())
-        subject_ids = json_data["subject_id"]
+        json_data = request.get_json()
+        data = json_data["data"]
+        subject_ids = data["subject_id"]
         try:
             Taken.query.filter_by(user_id=user.id).delete() # レコードが存在しない場合は何も起こらない
             new_taken_all = []
@@ -165,7 +167,7 @@ def taken():
         except exc.IntegrityError:
             return make_response(201)
 
-# 課題登録機能_段階1(GET) --Unit Tested
+# 課題登録機能_段階1(get) --Unit Tested
 @app.route("/api/task/regist/getSubjects", methods=["GET"])
 @login_required
 @expel_frozen_account
@@ -183,18 +185,19 @@ def taskRegistGetSubject():
         data = takens
         return make_response(200,data)
 
-# json_dataの変更 課題登録機能_段階1(POST) --Unit Tested
+# 課題登録機能_段階1(post) --Unit Tested
 @app.route("/api/task/regist/check", methods=["POST"])
 @login_required
 @expel_frozen_account
 def taskRegistCheck():
     if request.method == "POST": 
         #subject_id, deadline_year, deadline_month, deadline_day = 1, 2023, 4, 1
-        json_data = json.loads(request.get_json())
-        subject_id = json_data["subject_id"]
-        deadline_year = json_data["deadline_year"]
-        deadline_month = json_data["deadline_month"]
-        deadline_day = json_data["deadline_day"]
+        json_data = request.get_json()
+        data = json_data["data"]
+        subject_id = data["subject_id"]
+        deadline_year = data["deadline_year"]
+        deadline_month = data["deadline_month"]
+        deadline_day = data["deadline_day"]
         deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
         tasks = Task.query.filter_by(subject_id=subject_id, serial=deadline_serial).all()
         tasks_packs = []
@@ -214,7 +217,7 @@ def taskRegistCheck():
         }
         return make_response(200, data)
 
-# 課題登録機能_段階2(POST1) --Unit Tested
+# 課題登録機能_段階2(post1) --Unit Tested
 @app.route("/api/task/regist/duplication", methods=["POST"])
 @login_required
 @expel_frozen_account
@@ -222,14 +225,14 @@ def taskRegistDuplication():
     user = current_user
     user = current_user_need_not_login()
     if request.method == "POST":
-        json_data = json.loads(request.get_json())
-        task_id = json_data["task_id"]
+        data = json.loads(request.get_json())
+        task_id = data["task_id"]
         task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=1) 
         db.session.add(task_regist)
         db.session.commit()
         return make_response()
 
-# 課題登録機能_段階2(POST2) --Unit Tested
+# 課題登録機能_段階2(post2) --Unit Tested
 @app.route("/api/task/regist/new", methods=["POST"])
 @login_required
 @expel_frozen_account
@@ -238,14 +241,15 @@ def taskRegistNew():
     user = current_user_need_not_login()
     if request.method == "POST":
         try:
-            json_data = json.loads(request.get_json())
-            subject_id = json_data["subject_id"]
-            deadline_year = json_data["deadline_year"]
-            deadline_month = json_data["deadline_month"]
-            deadline_day = json_data["deadline_day"]           
-            summary = json_data["summary"]
-            detail = json_data["detail"]
-            difficulty = json_data["difficulty"]
+            json_data = request.get_json()
+            data = json_data["data"]
+            subject_id = data["subject_id"]
+            deadline_year = data["deadline_year"]
+            deadline_month = data["deadline_month"]
+            deadline_day = data["deadline_day"]           
+            summary = data["summary"]
+            detail = data["detail"]
+            difficulty = data["difficulty"]
             serial = get_int_serial(deadline_year, deadline_month, deadline_day)
             task_data = [user.id, subject_id, detail, summary, serial, difficulty]
             task_regist_data = [user.id, 1]
@@ -264,7 +268,7 @@ def taskRegistNew():
         except exc.DataError:  #データ長のはみ出し
             return make_response(3)
 
-# 課題削除機能(GET)、課題表示機能(GET) --Unit Tested
+# 課題削除機能(get)、課題表示機能(get) --Unit Tested
 @app.route("/api/task/getTasks", methods=["GET"])
 @login_required
 @expel_frozen_account
@@ -291,14 +295,15 @@ def taskGetTasks():
         }
         return make_response(200, data)
 
-# 課題削除機能(POST) --Unit Tested
+# 課題削除機能(post) --Unit Tested
 @app.route("/api/task/delete", methods=["POST"])
 @login_required
 @expel_frozen_account
 def taskDelete():
     if request.method == "POST": 
-        json_data = json.loads(request.get_json())
-        task_id = json_data["task_id"]
+        json_data = request.get_json()
+        data = json_data["data"]
+        task_id = data["task_id"]
         task_regist = Task_regist.query.filter_by(task_id=task_id).one()
         if(task_regist.kind==1):
             Task.query.filter_by(id=task_id).delete()
@@ -306,7 +311,7 @@ def taskDelete():
         db.session.commit()     
         return make_response()
 
-#! ログアウト機能(GET)
+#! ログアウト機能(get)
 @app.route("/api/logout", methods=["GET"])
 @login_required
 @expel_frozen_account
