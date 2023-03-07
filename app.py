@@ -1,7 +1,7 @@
 from time import time
 from flask import current_app
 from flask import request, redirect, url_for, jsonify
-from sqlalchemy import exc, func
+from sqlalchemy import exc, func, or_
 import re
 from flask_login import LoginManager, login_user, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -93,8 +93,10 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
         else: 
             l_l = Login_limiter(user_id=user.id) 
         db.session.add(l_l)
-        Login_limiter.query.filter(Login_limiter.user_id == user.id, \
-                            not (TimeBase.focus_lower_limit_ut < Login_limiter.login_ut)).delete()
+        Login_limiter.query.filter(Login_limiter.user_id == user.id, 
+                                    ~(TimeBase.focus_lower_limit_ut < Login_limiter.login_ut),
+                                    ~(time() - TimeBase.stop_duration < Login_limiter.login_ut) 
+                                ).delete()
         db.session.commit()
         return False
 
