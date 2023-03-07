@@ -1,7 +1,7 @@
 from time import time
 from flask import current_app
 from flask import request, redirect, url_for, jsonify
-from sqlalchemy import exc, func, or_
+from sqlalchemy import exc, func
 import re
 from flask_login import LoginManager, login_user, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
