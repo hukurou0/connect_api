@@ -1,3 +1,4 @@
+from time import time
 from flask import current_app
 from flask import request, redirect, url_for, jsonify
 from sqlalchemy import exc, func
@@ -8,11 +9,12 @@ from datetime import datetime, date, timedelta
 import json
 #from flask_cors import CORS
 from database_defined import app, db, get_key, increment_key
-from database_defined import (User, Admin, User_login, OTP_table, Gakka, Subject, Taken, 
+from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
                                Task, Old_task, Task_regist, Task_regist_kind, Manage_primary_key)
 from typing import Union
 from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str
 from pack_decorater import  QueueOption, login_required, current_user_need_not_login, multiple_control, expel_frozen_account
+from pack_datetime_unixtime_serial import TimeBase
 
 #必要な準備
 ctx = app.app_context()
@@ -53,9 +55,52 @@ def make_response(status_code:int =200, data:dict ={}):
     response = jsonify(response_dic)
     return response
 
+def is_strict_login_possible(username: str, password: str, is_update_restriction: bool = False) -> bool:
+    """
+    ログイン機能にアクセス制限を課す関数. 
+    ログイン制限はログイン試行時にログイン試行回数が一定回数以上になった場合に発動.
+    TimeBaseクラスで許容アクセス回数(/秒)とログイン制限の時間幅を指定する.
+
+    Parameters
+    ----------
+    is_update_ristriction: bool, default False
+        third_arg = True の場合、ログイン制限時のログイン試行に対して、
+        制限時間を更新する (実質ログイン可能までの時間が増加する) .
+    
+    Returns
+    ----------
+    ログイン条件(制限時間中でなく入力内容が正しい)を満たす時: True
+    """
+    user = User.query.filter_by(username==username).one_or_none()
+    if(user is None): 
+        return False
+    login_limiter = Login_limiter(user_id=user.id, is_stopped_access=True).all()
+    # login_limmiter リストが空でないとき かつ ログイン制限時間中でないとき (短絡評価のため login_limiter リストは空でも良い)
+    if(login_limiter and time() < login_limiter[-1].login_ut + TimeBase.stop_duration):
+        if(is_update_restriction): 
+            l = Login_limiter(user_id=user.id, is_stopped_access=True)
+            db.session.add(l)
+            db.session.commit()
+        return False
+    elif(check_password_hash(user.password, password)):
+        Login_limiter.query.filter_by(user_id=user.id).delete()
+        return True
+    else:
+        login_fails_by_user = Login_limiter.query.filter(Login_limiter.user_id == user.id, \
+                                                         TimeBase.focus_lower_limit_ut < Login_limiter.login_ut).all()
+        if(len(login_fails_by_user) - 1 > TimeBase.access_maximum_limit):
+            l_l = Login_limiter(user_id=user.id, is_stopped_access=True)
+        else: 
+            l_l = Login_limiter(user_id=user.id) 
+        db.session.add(l_l)
+        Login_limiter.query.filter(Login_limiter.user_id == user.id, \
+                            not (TimeBase.focus_lower_limit_ut < Login_limiter.login_ut)).delete()
+        db.session.commit()
+        return False
+
 # サインアップ機能(get), ユーザー情報編集機能(get) --Unit Tested 
 @app.route("/api/getDepartment", methods=["GET"])
-def getDepartment():
+def getDepartment():    
     if request.method == "GET": 
         gakkas = Gakka.query.filter_by().all()
         data = []
@@ -311,7 +356,7 @@ def taskDelete():
         db.session.commit()     
         return make_response()
     
-# 課題表示機能(GET) --Unit Tested
+# 課題表示機能(get) --Unit Tested
 @app.route("/api/task/getTasks", methods=["GET"])
 @login_required
 @expel_frozen_account
