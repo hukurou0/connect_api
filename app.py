@@ -225,7 +225,7 @@ def taskRegistDuplication():
     user = current_user
     user = current_user_need_not_login()
     if request.method == "POST":
-        data = json.loads(request.get_json())
+        data = request.get_json()
         task_id = data["task_id"]
         task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=1) 
         db.session.add(task_regist)
