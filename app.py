@@ -142,12 +142,10 @@ def modify_user():
         json_data = request.get_json()
         data = json_data["data"]
         department_id = data["department"]
-        try:
-            user.department_id = department_id
-            db.session.commit()
-            return make_response()
-        except exc.IntegrityError:
-            return make_response(201)        
+        
+        user.department_id = department_id
+        db.session.commit()
+        return make_response()       
 
 # 履修登録機能(get) --Unit Tested
 @app.route("/api/getSubjects", methods=["GET"])
