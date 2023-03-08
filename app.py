@@ -82,21 +82,18 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
             db.session.add(l)
             db.session.commit()
         return False
+    # ログイン未制限中 かつ ログイン成功時
     elif(check_password_hash(user.password, password)):
-        Login_limiter.query.filter_by(user_id=user.id).delete()
         return True
     else:
         login_fails_by_user = Login_limiter.query.filter(Login_limiter.user_id == user.id, \
                                                          TimeBase.focus_lower_limit_ut < Login_limiter.login_ut).all()
+        # 罰点(ログイン失敗回数)が規定回数以上になった場合
         if(len(login_fails_by_user) - 1 > TimeBase.access_maximum_limit):
             l_l = Login_limiter(user_id=user.id, is_stopped_access=True)
         else: 
             l_l = Login_limiter(user_id=user.id) 
         db.session.add(l_l)
-        Login_limiter.query.filter(Login_limiter.user_id == user.id, 
-                                    ~(TimeBase.focus_lower_limit_ut < Login_limiter.login_ut),
-                                    ~(time() - TimeBase.stop_duration < Login_limiter.login_ut) 
-                                ).delete()
         db.session.commit()
         return False
 
