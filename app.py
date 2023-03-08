@@ -11,7 +11,7 @@ import json
 from database_defined import app, db, get_key, increment_key
 from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
                                Task, Old_task, Task_regist, Task_regist_kind, Manage_primary_key)
-from typing import Union
+from typing import Final, Union
 from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str
 from pack_decorater import  QueueOption, login_required, current_user_need_not_login, multiple_control, expel_frozen_account
 from pack_datetime_unixtime_serial import TimeBase
@@ -47,8 +47,34 @@ def generate_star(difficulty: int) -> str:
     for _ in range(difficulty,5):
         star += "☆" 
     return star    
-  
-def make_response(status_code:int = 1, data:dict ={}):
+
+class StatusCode:
+    """
+    ステータスコードに関する変数郡
+
+    Attributes
+    ----------
+    success: int
+        (成功)正常なリクエスト
+    inputFormatError: int
+        (クライアント)不正な入力形式
+    accessDBServerError: int
+        (サーバ内部)サーバーが正常に動いていない, データ長のはみ出し
+    unauthorizedError: int
+        (クライアント)入力された情報で認証できなかった
+    frozenAccountError: int
+        (サーバ内部)ログイン条件が足りていない
+    dataDuplicateError: int
+        (クライアント)既に登録済みのユーザー名やメールアドレスの登録
+    """
+    successed: Final = 1
+    inputFormatError: Final = 2
+    accessDBServerError: Final = 3
+    unauthorizedError: Final = 101
+    frosenAccountError: Final = 102
+    duplicateValueError: Final = 201
+
+def make_response(status_code:int = StatusCode.successed, data:dict ={}):
     response_dic = {} 
     response_dic["status_code"] = status_code
     response_dic["data"] = data
@@ -109,7 +135,7 @@ def getDepartment():
             dic["name"] = gakka.gakka
             data.append(dic)
         print(data)
-        return make_response(1,data)
+        return make_response(StatusCode.successed, data)
 
 # サインアップ機能(post) --Unit Tested    
 @app.route("/api/signup", methods=["POST"])
@@ -129,7 +155,7 @@ def signup():
             increment_key("user")
             return make_response()
         except exc.IntegrityError:
-            return make_response(201)
+            return make_response(StatusCode.dataDuplicateError)
 
 # 所属学科変更機能(post) --Unit Tested
 @app.route("/api/user/modifyDepartment", methods=["POST"])
@@ -223,7 +249,7 @@ def taskRegistGetSubject():
         ]
     if request.method == "GET":
         data = takens
-        return make_response(1,data)
+        return make_response(StatusCode.successed, data)
 
 # 課題登録機能_段階1(post) --Unit Tested
 @app.route("/api/task/regist/check", methods=["POST"])
@@ -255,7 +281,7 @@ def taskRegistCheck():
         data = {
             "tasks" : tasks_packs
         }
-        return make_response(1, data)
+        return make_response(StatusCode.successed, data)
 
 # 課題登録機能_段階2(post1) --Unit Tested
 @app.route("/api/task/regist/duplication", methods=["POST"])
@@ -306,7 +332,7 @@ def taskRegistNew():
             add_Task_and_Task_regist(task_data, task_regist_data)
             return make_response()
         except exc.DataError:  #データ長のはみ出し
-            return make_response(3)
+            return make_response(StatusCode.accessDBServerError)
 
 # 課題削除機能(get) --Unit Tested
 @app.route("/api/user/getTasks", methods=["GET"])
@@ -333,7 +359,7 @@ def taskGetTasks():
         data = {
             "tasks" : tasks
         }
-        return make_response(1, data)
+        return make_response(StatusCode.successed, data)
 
 # 課題削除機能(post) --Unit Tested
 @app.route("/api/user/deleteTask", methods=["POST"])
@@ -384,7 +410,7 @@ def taskGetTask():
             "hard_tasks_id": hard_ids,
             "tasks": tasks_packs
         }
-        return make_response(1, data)
+        return make_response(StatusCode.successed, data)
 
 #! ログアウト機能(get)
 @app.route("/api/logout", methods=["GET"])
