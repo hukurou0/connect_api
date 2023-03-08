@@ -4,9 +4,15 @@ from typing import Union
 
 # 時間制御にまつわる変数[s]
 class TimeBase():
-    totp_valid_length = 75 
-    lastlogin_ut_default = time() - 3600  # ↓のminus値(-1800)より小さければ良い 
-    now_minus_login_valid_ut = time() - 1800  # 30分
+    # User 関連
+    focus_lower_limit_ut = time() - 60  # ログイン試行回数に着目する時間幅の下限[ut] 
+    access_maximum_limit = 10  # 上記時間に対して許容するログイン失敗回数[回]
+    stop_duration = 120  # 許容できないログイン失敗回数に到達したときのアクセス不能時間幅[s]
+    # Admin 関連
+    totp_valid_length = 75  # TOTP発行から入力までの許容時間[s]
+    now_minus_login_valid_ut = time() - 1800  # 最終操作時のセッションタイムアウトしない時間の下限[ut]  # cookie が残っている可能性も踏まえて.
+    lastlogin_ut_default = time() - 3600  # 最終操作時間のデフォルト値(Insert時に使用)[ut]. now_minus_lgoin_valid_ut より小さければ良い.
+    # 自動化関数 関連
 
 # ut, datetime 端数(小数点以下秒数)切捨て関数
 def round_unixtime_datetime(t : Union[float, datetime]) -> Union[int, datetime]:
