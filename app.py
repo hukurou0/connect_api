@@ -338,14 +338,18 @@ def taskGetTasks():
 @login_required
 @expel_frozen_account
 def taskDelete():
+    user = current_user
+    user = current_user_need_not_login()
     if request.method == "POST": 
         json_data = request.get_json()
         data = json_data["data"]
         task_id = data["task_id"]
-        task_regist = Task_regist.query.filter_by(task_id=task_id).one()
-        if(task_regist.kind==1):
-            Task.query.filter_by(id=task_id).delete()
-        db.session.delete(task_regist)
+        task = Task.query.filter_by(id=task_id)#TaskテーブルからOldTaskテーブルに移すことで削除とする。
+        old_task = Old_task(task_id = task.id,user_num = task.user_num,subject_id = task.subject_id,detail = task.detail,summary = task.summary,serial = task.serial)
+        task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=5)#Task_registテーブルにログを残す。
+        db.session.delete(task)
+        db.session.add(old_task)
+        db.session.add(task_regist)
         db.session.commit()     
         return make_response()
     
