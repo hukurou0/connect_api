@@ -15,6 +15,8 @@ from typing import Union
 from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str
 from pack_decorater import  QueueOption, login_required, current_user_need_not_login, multiple_control, expel_frozen_account
 from pack_datetime_unixtime_serial import TimeBase
+import traceback
+from psycopg2 import errors as psycopg2_errors
 
 #必要な準備
 ctx = app.app_context()
@@ -114,22 +116,36 @@ def getDepartment():
 # サインアップ機能(post) --Unit Tested    
 @app.route("/api/signup", methods=["POST"])
 def signup():
+    increment_key("user")
+    session = db.session
     if request.method == "POST": 
         json_data = request.get_json()
         data = json_data["data"]
         username = data["username"]
         password = data["password"]
         department_id = data["department"]
+        def create_user():
+            try:
+                id = get_key("user")
+                user = User(id=id, username=username, password=generate_password_hash(password, method="sha256"), \
+                        department_id = department_id,mail="abbb")
+                session.add(user)
+                session.commit()
+                increment_key("user")
+
+            except exc.IntegrityError as sqlalchemy_error: #IntegrityErrorは一意制約だけでなくnull違反など包括的なエラー
+                raise sqlalchemy_error.orig # DatabaseごとのAPIのエラーをraiseする
+
         try:
-            id = get_key("user")
-            user = User(id=id, username=username, password=generate_password_hash(password, method="sha256"), \
-                        department_id = department_id)
-            db.session.add(user)
-            db.session.commit()
-            increment_key("user")
+            create_user()
             return make_response()
-        except exc.IntegrityError:
+        except psycopg2_errors.UniqueViolation:# 一意制約違反のエラー　ここではusername重複
+            #traceback.print_exc()
+            session.rollback()
             return make_response(201)
+        finally:
+            session.close()
+            
 
 # 所属学科変更機能(post) --Unit Tested
 @app.route("/api/user/modifyDepartment", methods=["POST"])
