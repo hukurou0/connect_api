@@ -314,12 +314,11 @@ def taskGetTasks():
     user = current_user
     user = current_user_need_not_login()
     if request.method == "GET":
-        registerd_tasks = Task_regist.query.filter_by(user_id=user.id).all()
-        tasks = []
-        for r in registerd_tasks:
-            task = Task.query.filter_by(id=r.task_id).one()
+        tasks_list = []
+        tasks:list = Task.query.filter_by(user_num=user.id).all()
+        for task in tasks:
             subject = Subject.query.filter_by(id=task.subject_id).one()
-            tasks += [
+            tasks_list += [
                 {
                     "id": task.id,
                     "subject_name": subject.subject_name,
@@ -329,7 +328,7 @@ def taskGetTasks():
                 }
             ]
         data = {
-            "tasks" : tasks
+            "tasks" : tasks_list
         }
         return make_response(1, data)
 
