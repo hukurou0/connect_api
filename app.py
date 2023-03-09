@@ -121,12 +121,10 @@ def signup():
         password = data["password"]
         department_id = data["department"]
         try:
-            id = get_key("user")
-            user = User(id=id, username=username, password=generate_password_hash(password, method="sha256"), \
+            user = User(username=username, password=generate_password_hash(password, method="sha256"), \
                         department_id = department_id)
             db.session.add(user)
             db.session.commit()
-            increment_key("user")
             return make_response()
         except exc.IntegrityError:
             return make_response(201)
