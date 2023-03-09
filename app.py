@@ -120,10 +120,13 @@ def signup():
     session = db.session
     if request.method == "POST": 
         json_data = request.get_json()
-        data = json_data["data"]
-        username = data["username"]
-        password = data["password"]
-        department_id = data["department"]
+        try:
+            data = json_data["data"]
+            username = data["username"]
+            password = data["password"]
+            department_id = data["department"]
+        except:
+            return make_response(2)
         def create_user():
             try:
                 id = get_key("user")
@@ -135,7 +138,6 @@ def signup():
 
             except exc.IntegrityError as sqlalchemy_error: #IntegrityErrorは一意制約だけでなくnull違反など包括的なエラー
                 raise sqlalchemy_error.orig # DatabaseごとのAPIのエラーをraiseする
-
         try:
             create_user()
             return make_response()
