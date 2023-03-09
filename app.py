@@ -400,18 +400,20 @@ def taskGetTask():
             extend(kadai)
          
         tasks_packs = {} 
+        today_serial = get_int_serial()
         for kadai in kadais:
-            s = Subject.query.filter_by(id = kadai.subject_id).one()
-            tasks_packs[kadai.id] = {
-                "subject_name": s.subject_name,
-                "summary": kadai.summary,
-                "detail": kadai.detail,
-                "deadline": f"{(datetime(1899,12,30) + timedelta(kadai.serial)).strftime('%m/%d')}",
-                "difficulty": kadai.difficulty
-            }
+            serial = kadai.serial
+            if serial >= today_serial:#期限が終わっていない
+                s = Subject.query.filter_by(id = kadai.subject_id).one()
+                tasks_packs[kadai.id] = {
+                    "subject_name": s.subject_name,
+                    "summary": kadai.summary,
+                    "detail": kadai.detail,
+                    "deadline": f"{(datetime(1899,12,30) + timedelta(kadai.serial)).strftime('%m/%d')}",
+                    "difficulty": kadai.difficulty
+                }
          
         #all_tasks_idとhard_tasks_idの振り分け
-        today_serial = get_int_serial()
         all_tasks_id, hard_tasks_id = [],[]
         for kadai in kadais:
             serial = kadai.serial
