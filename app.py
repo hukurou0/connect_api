@@ -377,35 +377,86 @@ def taskDelete():
 @login_required
 @expel_frozen_account
 def taskGetTask():
+    user = current_user
+    user = current_user_need_not_login()
     if request.method == "GET": 
-        #subject_id, deadline_year, deadline_month, deadline_day = 1, 2023, 4, 1
-        json_data = json.loads(request.get_json())
-        subject_id = json_data["subject_id"]
-        deadline_year = json_data["deadline_year"]
-        deadline_month = json_data["deadline_month"]
-        deadline_day = json_data["deadline_day"]
-        deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
-        tasks = Task.query.filter_by(subject_id=subject_id, serial=deadline_serial).all()
-        tasks_id, hard_ids = [], []
-        tasks_packs = {}
-        for t in tasks:
-            s = Subject.query.filter_by(id = t.subject_id).one()
-            if(t.difficulty==5 or t.serial < get_int_serial() + 3):
-                hard_ids += [t.id]
-            tasks_id += [t.id]
-            tasks_packs[t.id] = {
-                "subject_name": s.subject_name,
-                "summary": t.summary,
-                "detail": t.detail,
-                "deadline": f"{deadline_month}/{deadline_day}",
-                "difficulty": t.difficulty
-            }
+        #課題表示出来るかの確認ー(履修登録)ーーーーーーーーーーーーーーーー
+        taken = Taken.query.filter_by(user_id=user.id).all()
+        if taken == []:
+            _ = {"subject_tasken":False}
+        else:
+            _ = {"subject_tasken":True}
+            
+        #課題表示出来るかの確認ー(課題登録)ーーーーーーーーーーーーーーーー
+        task_regists = Task_regist.query.filter_by(user_id=user.id).all()
+        regist_time = []
+        for task_regist in task_regists:
+            regist_time.append(task_regist.regist_time)
+        if regist_time != []:
+            recent_regist_time = max(regist_time)
+            now_serial = get_float_serial()
+            if now_serial >= recent_regist_time + 3:
+                __ = {"task_regist":False}
+            else:
+                __ = {"task_regist":True}
+        else:
+            __ = {"task_regist":False}
+            
+        #課題表示出来るかの確認ー("display_ok"作成)ーーーーーーーーーーーーーーーー
+        display_ok = {}
+        display_ok.update(**_, **__)
+        
+        #残りの課題表示出来る時間
+        hour = int((recent_regist_time + 3 - now_serial)/0.04166667) 
+        
+        #課題情報を作成ーーーーーーーーーーーーーーーーーーーーーーーーー
+        taken_subject_ids = []
+        append = taken_subject_ids.append
+        for i in taken:
+            taken_subject_id = i.subject_id
+            append(taken_subject_id)
+        
+        kadais = []
+        extend = kadais.extend
+        for i in taken_subject_ids:
+            kadai = Task.query.filter_by(subject_id = i).all()  
+            extend(kadai)
+         
+        tasks_packs = {} 
+        today_serial = get_int_serial()
+        for kadai in kadais:
+            serial = kadai.serial
+            if serial >= today_serial:#期限が終わっていない
+                s = Subject.query.filter_by(id = kadai.subject_id).one()
+                tasks_packs[kadai.id] = {
+                    "subject_name": s.subject_name,
+                    "summary": kadai.summary,
+                    "detail": kadai.detail,
+                    "deadline": f"{(datetime(1899,12,30) + timedelta(kadai.serial)).strftime('%m/%d')}",
+                    "difficulty": kadai.difficulty
+                }
+         
+        #all_tasks_idとhard_tasks_idの振り分け
+        all_tasks_id, hard_tasks_id = [],[]
+        for kadai in kadais:
+            serial = kadai.serial
+            if serial >= today_serial:#期限が終わっていない
+                if today_serial+3 >= serial:#期限が三日以内である
+                    all_tasks_id.append(kadai.id)
+                    hard_tasks_id.append(kadai.id)
+                else:#期限が三日以内でない
+                    all_tasks_id.append(kadai.id)
+                    if kadai.difficulty == 5:#期限は三日以内でないが大変さが5である
+                        hard_tasks_id.append(kadai.id)
+                        
         data = {
-            "all_tasks_id": tasks_id,
-            "hard_tasks_id": hard_ids,
+            "display_ok":display_ok,
+            "hour":hour,
+            "all_tasks_id": all_tasks_id,
+            "hard_tasks_id": hard_tasks_id,
             "tasks": tasks_packs
-        }
-        return make_response(1, data)
+        } 
+        return make_response(1,data)
 
 #! ログアウト機能(get)
 @app.route("/api/logout", methods=["GET"])
