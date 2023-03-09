@@ -50,7 +50,7 @@ def generate_star(difficulty: int) -> str:
         star += "☆" 
     return star    
   
-def make_response(status_code:int =200, data:dict ={}):
+def make_response(status_code:int = 1, data:dict ={}):
     response_dic = {} 
     response_dic["status_code"] = status_code
     response_dic["data"] = data
@@ -111,7 +111,7 @@ def getDepartment():
             dic["name"] = gakka.gakka
             data.append(dic)
         print(data)
-        return make_response(200,data)
+        return make_response(1,data)
 
 # サインアップ機能(post) --Unit Tested    
 @app.route("/api/signup", methods=["POST"])
@@ -160,12 +160,10 @@ def modify_user():
         json_data = request.get_json()
         data = json_data["data"]
         department_id = data["department"]
-        try:
-            user.department_id = department_id
-            db.session.commit()
-            return make_response()
-        except exc.IntegrityError:
-            return make_response(201)        
+        
+        user.department_id = department_id
+        db.session.commit()
+        return make_response()       
 
 # 履修登録機能(get) --Unit Tested
 @app.route("/api/getSubjects", methods=["GET"])
@@ -203,7 +201,7 @@ def getSubjet():
             "name": subject_names, 
             "is_taken": is_taken
         }
-        return make_response(200,data)
+        return make_response(1,data)
 
 # 履修登録機能(post) --Unit Tested
 @app.route("/api/taken", methods=["POST"])
@@ -216,18 +214,16 @@ def taken():
         json_data = request.get_json()
         data = json_data["data"]
         subject_ids = data["subject_id"]
-        try:
-            Taken.query.filter_by(user_id=user.id).delete() # レコードが存在しない場合は何も起こらない
-            new_taken_all = []
-            for subject_id in subject_ids:
-                if(subject_id!=0):
-                    new_taken = Taken(user_id=user.id, subject_id=subject_id)
-                    new_taken_all.append(new_taken)
-            db.session.add_all(new_taken_all)
-            db.session.commit()
-            return make_response()
-        except exc.IntegrityError:
-            return make_response(201)
+        
+        Taken.query.filter_by(user_id=user.id).delete() # レコードが存在しない場合は何も起こらない
+        new_taken_all = []
+        for subject_id in subject_ids:
+            if(subject_id!=0):
+                new_taken = Taken(user_id=user.id, subject_id=subject_id)
+                new_taken_all.append(new_taken)
+        db.session.add_all(new_taken_all)
+        db.session.commit()
+        return make_response()
 
 # 課題登録機能_段階1(get) --Unit Tested
 @app.route("/api/task/regist/getSubjects", methods=["GET"])
@@ -245,7 +241,7 @@ def taskRegistGetSubject():
         ]
     if request.method == "GET":
         data = takens
-        return make_response(200,data)
+        return make_response(1,data)
 
 # 課題登録機能_段階1(post) --Unit Tested
 @app.route("/api/task/regist/check", methods=["POST"])
@@ -277,7 +273,7 @@ def taskRegistCheck():
         data = {
             "tasks" : tasks_packs
         }
-        return make_response(200, data)
+        return make_response(1, data)
 
 # 課題登録機能_段階2(post1) --Unit Tested
 @app.route("/api/task/regist/duplication", methods=["POST"])
@@ -355,7 +351,7 @@ def taskGetTasks():
         data = {
             "tasks" : tasks
         }
-        return make_response(200, data)
+        return make_response(1, data)
 
 # 課題削除機能(post) --Unit Tested
 @app.route("/api/user/deleteTask", methods=["POST"])
@@ -406,7 +402,7 @@ def taskGetTask():
             "hard_tasks_id": hard_ids,
             "tasks": tasks_packs
         }
-        return make_response(200, data)
+        return make_response(1, data)
 
 #! ログアウト機能(get)
 @app.route("/api/logout", methods=["GET"])

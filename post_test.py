@@ -7,22 +7,21 @@ import json
 
 
 # POST先URL
-url = "http://127.0.0.1:5000/api/task/regist/check"
+url = "http://127.0.0.1:5000/api/signup"
 
 #JSON形式のデータ(リクエスト用). 変数json_dataの格納値にドキュメントの {"data": data_value } (全て)をコピペする.
 json_data = {
 	"data": {
-		"subject_id": 1,
-		"deadline_year": 2023,
-		"deadline_month": 4,
-		"deadline_day": 1
+		"username": "khao",
+		"password": "adaa",
+		"department":1,
 	}
 }
 
 #POST送信(Test)
 response = requests.post(
     url,
-    json = json.dumps(json_data["data"])    #dataを指定する
+    json = json_data    #dataを指定する
     )
 
 res_data = response.json()
