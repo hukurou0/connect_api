@@ -392,6 +392,22 @@ def logout():
     if request.method == "GET":
         logout_user()  # セッション情報の削除  #? 変更となる可能性あり
         return make_response()
-            
+    
+@app.route("/api/getInquiryForms", method=["GET"])
+@login_required
+@expel_frozen_account
+def getInquiryForms():
+    if request.method == "GET":
+        return make_response(1, date)
+
+@app.route("api/sendInquiryForms", method=["POST"])
+@login_required
+@expel_frozen_account
+def sendInquiryForms():
+    if request.method == "POST":
+        json_data = json.loads(request.get_json())
+        return make_response()
+
+
 if __name__=='__main__':
     app.run(debug=True, threaded=True)
