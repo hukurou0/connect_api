@@ -262,7 +262,7 @@ def taskRegistGetSubject():
     for t in takens:
         subject = Subject.query.filter_by(id=t.subject_id).one()    
         takens += [
-            {"name": subject.name, "id": t.subject_id}
+            {"name": subject.name, "subject_id": t.subject_id}
         ]
     if request.method == "GET":
         data = takens
@@ -292,7 +292,7 @@ def taskRegistCheck():
             s = Subject.query.filter_by(id = t.subject_id).one()
             tasks_packs += [
                 {
-                "id": t.id,
+                "task_id": t.id,
                 "subject_name": s.subject_name,
                 "summary": t.summary,
                 "detail": t.detail,
