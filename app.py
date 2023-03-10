@@ -116,8 +116,6 @@ def getDepartment():
 # サインアップ機能(post) --Unit Tested    
 @app.route("/api/signup", methods=["POST"])
 def signup():
-    increment_key("user")
-    session = db.session
     if request.method == "POST": 
         json_data = request.get_json()
         try:
@@ -127,17 +125,22 @@ def signup():
             department_id = data["department"]
         except:
             return make_response(2)
+        
         def create_user():
             try:
-                id = get_key("user")
-                user = User(id=id, username=username, password=generate_password_hash(password, method="sha256"), \
+                user = User( username=username, password=generate_password_hash(password, method="sha256"), \
                         department_id = department_id,mail="abbb")
                 session.add(user)
                 session.commit()
-                increment_key("user")
 
             except exc.IntegrityError as sqlalchemy_error: #IntegrityErrorは一意制約だけでなくnull違反など包括的なエラー
                 raise sqlalchemy_error.orig # DatabaseごとのAPIのエラーをraiseする
+            
+        try:
+            session = db.session
+        except:
+            return make_response(3)    
+            
         try:
             create_user()
             return make_response()
@@ -158,11 +161,22 @@ def modify_user():
     user = current_user_need_not_login()
     if request.method == "POST": 
         json_data = request.get_json()
-        data = json_data["data"]
-        department_id = data["department"]
+        try:
+            data = json_data["data"]
+            department_id = data["department"]
+        except:
+            return make_response(2)
         
-        user.department_id = department_id
-        db.session.commit()
+        try:
+            session = db.session
+            user.department_id = department_id
+            session.commit()
+        except:
+            session.rollback()
+            return make_response(3) 
+        finally:
+            session.close()
+        
         return make_response()       
 
 # 履修登録機能(get) --Unit Tested
@@ -212,8 +226,11 @@ def taken():
     user = current_user_need_not_login()
     if request.method == "POST": 
         json_data = request.get_json()
-        data = json_data["data"]
-        subject_ids = data["subject_id"]
+        try:
+            data = json_data["data"]
+            subject_ids = data["subject_id"]
+        except:
+            return make_response(2)
         
         Taken.query.filter_by(user_id=user.id).delete() # レコードが存在しない場合は何も起こらない
         new_taken_all = []
@@ -221,8 +238,16 @@ def taken():
             if(subject_id!=0):
                 new_taken = Taken(user_id=user.id, subject_id=subject_id)
                 new_taken_all.append(new_taken)
-        db.session.add_all(new_taken_all)
-        db.session.commit()
+        try:
+            session = db.session
+            session.add_all(new_taken_all)
+            session.commit()
+        except:
+            session.rollback()
+            return make_response(3) 
+        finally:
+            session.close()
+        
         return make_response()
 
 # 課題登録機能_段階1(get) --Unit Tested
@@ -251,11 +276,15 @@ def taskRegistCheck():
     if request.method == "POST": 
         #subject_id, deadline_year, deadline_month, deadline_day = 1, 2023, 4, 1
         json_data = request.get_json()
-        data = json_data["data"]
-        subject_id = data["subject_id"]
-        deadline_year = data["deadline_year"]
-        deadline_month = data["deadline_month"]
-        deadline_day = data["deadline_day"]
+        try:
+            data = json_data["data"]
+            subject_id = data["subject_id"]
+            deadline_year = data["deadline_year"]
+            deadline_month = data["deadline_month"]
+            deadline_day = data["deadline_day"]
+        except:
+            return make_response(2)
+        
         deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
         tasks = Task.query.filter_by(subject_id=subject_id, serial=deadline_serial).all()
         tasks_packs = []
@@ -283,11 +312,24 @@ def taskRegistDuplication():
     user = current_user
     user = current_user_need_not_login()
     if request.method == "POST":
-        data = request.get_json()
-        task_id = data["task_id"]
+        json_data = request.get_json()
+        try:
+            data = json_data["data"]
+            task_id = data["task_id"]
+        except:
+            return make_response(2)
+        
         task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=1) 
-        db.session.add(task_regist)
-        db.session.commit()
+        try:
+            session = db.session
+            session.add(task_regist)
+            session.commit()
+        except:
+            session.rollback()
+            return make_response(3) 
+        finally:
+            session.close()
+        
         return make_response()
 
 # 課題登録機能_段階2(post2) --Unit Tested
@@ -300,14 +342,17 @@ def taskRegistNew():
     if request.method == "POST":
         try:
             json_data = request.get_json()
-            data = json_data["data"]
-            subject_id = data["subject_id"]
-            deadline_year = data["deadline_year"]
-            deadline_month = data["deadline_month"]
-            deadline_day = data["deadline_day"]           
-            summary = data["summary"]
-            detail = data["detail"]
-            difficulty = data["difficulty"]
+            try:
+                data = json_data["data"]
+                subject_id = data["subject_id"]
+                deadline_year = data["deadline_year"]
+                deadline_month = data["deadline_month"]
+                deadline_day = data["deadline_day"]           
+                summary = data["summary"]
+                detail = data["detail"]
+                difficulty = data["difficulty"]
+            except:
+                return make_response(2)
             serial = get_int_serial(deadline_year, deadline_month, deadline_day)
             task_data = [user.id, subject_id, detail, summary, serial, difficulty]
             task_regist_data = [user.id, 1]
@@ -361,15 +406,26 @@ def taskDelete():
     user = current_user_need_not_login()
     if request.method == "POST": 
         json_data = request.get_json()
-        data = json_data["data"]
-        task_id = data["task_id"]
+        try:
+            data = json_data["data"]
+            task_id = data["task_id"]
+        except:
+            return make_response(2)
         task = Task.query.filter_by(id=task_id)#TaskテーブルからOldTaskテーブルに移すことで削除とする。
         old_task = Old_task(task_id = task.id,user_num = task.user_num,subject_id = task.subject_id,detail = task.detail,summary = task.summary,serial = task.serial)
         task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=5)#Task_registテーブルにログを残す。
-        db.session.delete(task)
-        db.session.add(old_task)
-        db.session.add(task_regist)
-        db.session.commit()     
+        try:
+            session = db.session
+            session.delete(task)
+            session.add(old_task)
+            session.add(task_regist)
+            session.commit()
+        except:
+            session.rollback()
+            return make_response(3) 
+        finally:
+            session.close()
+             
         return make_response()
     
 # 課題表示機能(get) --Unit Tested
