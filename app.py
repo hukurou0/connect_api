@@ -514,6 +514,20 @@ def taskGetTask():
         } 
         return make_response(1,data)
 
+@app.route("/api/user/getInfo", methods=["GET"])
+@login_required
+@expel_frozen_account
+def getinfo():
+    user = current_user
+    user = current_user_need_not_login()
+    s:Gakka = Gakka.query.filter_by(id = user.department_id).one()
+    data = {
+        "username":user.username,
+        "department":s.gakka,
+        "mail":user.mail
+    }
+    return make_response(1,data)
+
 #! ログアウト機能(get)
 @app.route("/api/logout", methods=["GET"])
 @login_required
