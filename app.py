@@ -180,7 +180,7 @@ def modify_user():
         return make_response()       
 
 # 履修登録機能(get) --Unit Tested
-@app.route("/api/getSubjects", methods=["GET"])
+@app.route("/api/taken/getSubjects", methods=["GET"])
 @login_required
 @expel_frozen_account
 def getSubjet():
@@ -197,6 +197,10 @@ def getSubjet():
                 classes = []
                 taken_subject = Subject.query.filter(Subject.id.in_(now_subject_ids), Subject.department_id==user.department_id, Subject.day==day, Subject.period==period).one_or_none()
                 taken_id = 0 if(taken_subject is None) else taken_subject.id
+                classes += [{
+                    "id": 0,
+                    "name": "空きコマ"
+                }]
                 classes += [
                     {
                         "id": taken.subject_id,
