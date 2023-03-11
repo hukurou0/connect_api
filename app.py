@@ -22,6 +22,7 @@ from psycopg2 import errors as psycopg2_errors
 ctx = app.app_context()
 ctx.push()
 app = current_app
+app.config['JSON_AS_ASCII'] = False
 #CORS(app)
 
 #ログイン機能に必要な準備
