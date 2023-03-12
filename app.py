@@ -257,12 +257,12 @@ def taken():
 def taskRegistGetSubject():
     user = current_user
     user = current_user_need_not_login() 
-    takens =  Taken.query.filter_by(user_id = user.id).all()
+    takens_ =  Taken.query.filter_by(user_id = user.id).all()
     takens = []
-    for t in takens:
+    for t in takens_:
         subject = Subject.query.filter_by(id=t.subject_id).one()    
         takens += [
-            {"name": subject.name, "subject_id": t.subject_id}
+            {"name": subject.subject_name, "subject_id": t.subject_id}
         ]
     if request.method == "GET":
         data = takens
