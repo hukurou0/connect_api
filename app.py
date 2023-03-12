@@ -180,7 +180,7 @@ def modify_user():
         return make_response()       
 
 # 履修登録機能(get) --Unit Tested
-@app.route("/api/getSubjects", methods=["GET"])
+@app.route("/api/taken/getSubjects", methods=["GET"])
 @login_required
 @expel_frozen_account
 def getSubjet():
@@ -188,33 +188,29 @@ def getSubjet():
     user = current_user_need_not_login()
     days = ['mon','tue','wed','thu','fri']
     periods = ['1','2','3','4','5']
-    # when[i]に対する現履修中科目(taken_subject)の検索(in句)のために使用
+    # taken_subject の id 検索のために定義
     now_subject_ids=[t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
     if request.method == "GET": 
-        # when[i]: 曜日時限, is_taken: when[i]に対して履修中の科目が存在するか否か
-        # subject_ids[i]: [when[i]に対する現履修中科目id, ..., 〃] (taken_subject_ids[∃j]を優先), subject_names[i]: [when[i]に対する現履修中科目名, ..., 〃] (taken_subject_ids[∃j]に対応するものを優先)  
-        when, is_taken, subject_ids, subject_names = [], [], [], []  # dataとしてクライアントに渡す要素
+        data, classes, taken_id = {}, [], []  # dataとしてクライアントに渡す要素
         for period in periods:
             for day in days:
-                when.append(f'{day}{period}')
+                classes = []
                 taken_subject = Subject.query.filter(Subject.id.in_(now_subject_ids), Subject.department_id==user.department_id, Subject.day==day, Subject.period==period).one_or_none()
-                when_i_subjects = Subject.query.filter_by(department_id=user.department_id, day=day, period=period).all()
-                if(taken_subject is None):
-                    is_taken.append("False")
-                else:
-                    is_taken.append("True")
-                    # 既に履修登録していた課題が配列の添字最小となるように移動.
-                    when_i_subjects.insert(0, taken_subject)
-                    when_i_subjects = list(set(when_i_subjects))
-                # subject_names: ["空きコマ", Union["履修中科目名", "other0"], other1, ..., otherN]
-                subject_ids.append(['0'] + [f'{s.id}' for s in when_i_subjects])
-                subject_names.append(["空きコマ"] + [s.subject_name for s in when_i_subjects])
-        data = {
-            "when": when,
-            "id": subject_ids,
-            "name": subject_names, 
-            "is_taken": is_taken
-        }
+                taken_id = 0 if(taken_subject is None) else taken_subject.id
+                classes += [{
+                    "id": 0,
+                    "name": "空きコマ"
+                }]
+                classes += [
+                    {
+                        "id": taken.subject_id,
+                        "name": Subject.query.filter_by(id=taken.subject_id).one().subject_name
+                    }
+                for taken in Taken.query.filter_by(user_id = user.id).all()] 
+                data[f"{day}{period}"] = {
+                    "classes": classes,
+                    "taken_id": taken_id
+                }
         return make_response(1,data)
 
 # 履修登録機能(post) --Unit Tested
