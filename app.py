@@ -198,7 +198,8 @@ def getSubjet():
         for period in periods:
             for day in days:
                 classes = [] 
-                taken_subject = _taken_subject(now_taken_subject_ids)
+                subjects = Subject.query.filter_by(period = period, day = day)
+                taken_subject = _taken_subject(now_taken_subject_ids, subjects)
                 taken_id = 0 if(taken_subject == []) else taken_subject[0].id
                 classes += [{
                     "id": 0,
