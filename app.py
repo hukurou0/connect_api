@@ -189,14 +189,17 @@ def getSubjet():
     days = ['mon','tue','wed','thu','fri']
     periods = ['1','2','3','4','5']
     # taken_subject の id 検索のために定義
-    now_subject_ids=[t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
+    now_taken_subject_ids = [t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
     if request.method == "GET": 
+        def _taken_subject(now_taken_subject_ids_: list[int], subjects: list[Subject]):
+            taken_subject_id = [s for s in subjects if s.id in now_taken_subject_ids_]
+            return taken_subject_id
         data, classes, taken_id = {}, [], []  # dataとしてクライアントに渡す要素
         for period in periods:
             for day in days:
-                classes = []
-                taken_subject = Subject.query.filter(Subject.id.in_(now_subject_ids), Subject.department_id==user.department_id, Subject.day==day, Subject.period==period).one_or_none()
-                taken_id = 0 if(taken_subject is None) else taken_subject.id
+                classes = [] 
+                taken_subject = _taken_subject(now_taken_subject_ids)
+                taken_id = 0 if(taken_subject == []) else taken_subject[0].id
                 classes += [{
                     "id": 0,
                     "name": "空きコマ"
