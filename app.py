@@ -206,10 +206,10 @@ def getSubjet():
                 }]
                 classes += [
                     {
-                        "id": taken.subject_id,
-                        "name": Subject.query.filter_by(id=taken.subject_id).one().subject_name
+                        "id": taken_subject[0].id,
+                        "name": taken_subject[0].subject_name
                     }
-                for taken in Taken.query.filter_by(user_id = user.id).all()] 
+                for _ in Taken.query.filter_by(user_id = user.id).all()] 
                 data[f"{day}{period}"] = {
                     "classes": classes,
                     "taken_id": taken_id
