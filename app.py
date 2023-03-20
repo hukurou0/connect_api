@@ -1,4 +1,5 @@
 from time import time
+import uuid
 from flask import current_app
 from flask import request, redirect, url_for, jsonify
 from sqlalchemy import exc, func
@@ -10,11 +11,12 @@ import json
 #from flask_cors import CORS
 from database_defined import app, db, get_key, increment_key
 from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
-                               Task, Old_task, Task_regist, Task_regist_kind, Manage_primary_key)
-from typing import Union
+                               Task, Old_task, Task_regist, Task_regist_kind, Manage_primary_key, Inquiry_mail)
+from typing import Final, Union
 from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str
 from pack_decorater import  QueueOption, login_required, current_user_need_not_login, multiple_control, expel_frozen_account
 from pack_datetime_unixtime_serial import TimeBase
+from send_email_by_user import send_email
 
 #必要な準備
 ctx = app.app_context()
@@ -392,20 +394,61 @@ def logout():
     if request.method == "GET":
         logout_user()  # セッション情報の削除  #? 変更となる可能性あり
         return make_response()
-    
-@app.route("/api/getInquiryForms", method=["GET"])
+
+# 問い合わせ機能(get) --Unit Tested   
+@app.route("/api/getInquiryForms", methods=["GET"])
 @login_required
 @expel_frozen_account
 def getInquiryForms():
+    headlines: Final = [
+        {"content": "退会したい"},
+        {"content": "不適切な課題を発見した"},
+        {"content": "もっとアプリを良くするために"},
+        {"content": "その他"},
+    ] 
     if request.method == "GET":
-        return make_response(1, date)
+        data = {
+            "headline": headlines 
+        }
+        return make_response(1, data)
 
-@app.route("api/sendInquiryForms", method=["POST"])
+# 問い合わせ機能(post) --Unit Tested   
+@app.route("/api/sendInquiryForms", methods=["POST"])
 @login_required
 @expel_frozen_account
 def sendInquiryForms():
+    user = current_user
+    user = current_user_need_not_login()
+    if(user.mail is None or "$" in user.mail):
+        return make_response(301)
     if request.method == "POST":
         json_data = json.loads(request.get_json())
+        data = json_data["data"]
+        headline = data["content"]
+        is_display = data["is_display"]
+        user_id = user.id if(is_display) else "非表示"
+        bodys = data["body"]
+        i, body_html = 0, ""
+        for body in bodys:
+            i += 1
+            body_html += body
+            if(i % 40 == 0):  # 改行文字数
+                body_html += "<br>"
+        inquiry_mail = Inquiry_mail(mail = user.mail)
+        db.session.add(inquiry_mail)
+        db.session.commit()
+        inquiry_mail_all = Inquiry_mail.query.filter_by(mail = user.mail).all()
+        inquiry_mail_id = inquiry_mail_all[-1].id
+        inquiry_html = f"""
+            <h2>問い合わせ概要: {headline}</h2>
+            <h2>ユーザーID: {user_id}</h2>
+            <h2>本文: <br>{body_html}</h2>
+            <h2>key: {inquiry_mail_id}</h2>
+        """
+        subject = "お問い合わせ ( by ユーザー ) "
+        to_addresses = [User.query.filter_by(id = a.user_id).one().mail \
+                         for a in Admin.query.filter_by(privilege = 2).all()]
+        send_email(to_addresses, subject, inquiry_html)
         return make_response()
 
 
