@@ -8,6 +8,8 @@ class TimeBase():
     focus_lower_limit_ut = time() - 60  # ログイン試行回数に着目する時間幅の下限[ut] 
     access_maximum_limit = 10  # 上記時間に対して許容するログイン失敗回数[回]
     stop_duration = 120  # 許容できないログイン失敗回数に到達したときのアクセス不能時間幅[s]
+    totp_valid_length_by_authn_mail = 1*60*30  # メール認証についてTOTP発行から入力までの許容時間[s]
+    length_name_by_authn_mail = "30分"  # メール認証についてTOTP発行から入力までの許容時間(上記と連動)
     # Admin 関連
     totp_valid_length = 75  # TOTP発行から入力までの許容時間[s]
     now_minus_login_valid_ut = time() - 1800  # 最終操作時のセッションタイムアウトしない時間の下限[ut]  # cookie が残っている可能性も踏まえて.

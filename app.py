@@ -1,3 +1,4 @@
+import random
 from time import time
 from flask import current_app
 from flask import request, redirect, url_for, jsonify
@@ -7,10 +8,11 @@ from flask_login import LoginManager, login_user, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
 import json
+from send_email_by_user import send_email, HyperLink
 #from flask_cors import CORS
 from database_defined import app, db, get_key, increment_key
 from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
-                               Task, Old_task, Task_regist, Task_regist_kind, Manage_primary_key)
+                               Task, Old_task, Task_regist, Task_regist_kind, BeforeAuthnMail)
 from typing import Union
 from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str
 from pack_decorater import  QueueOption, login_required, current_user_need_not_login, multiple_control, expel_frozen_account
@@ -527,6 +529,72 @@ def getinfo():
         "mail":user.mail
     }
     return make_response(1,data)
+
+#! メール認証_段階1(GET)
+@app.route("api/user/getMail", methods=["GET"])
+@login_required
+@expel_frozen_account
+def getMail():
+    if request.method == "GET":
+        user = current_user
+        user = current_user_need_not_login()  
+        data = {
+            "mail": None if("$" in user.mail) else user.mail
+        }   
+        return make_response(1, data)
+    
+#! メール認証_段階1(POST)
+@app.route("api/user/sendUserTotp", methods=["POST"])
+@login_required
+@expel_frozen_account
+def sendUserTotp():
+    user = current_user
+    user = current_user_need_not_login()
+    if request.method == "POST":
+        json_data = request.get_json()
+        data = json_data["data"]
+        addr = data["mail"]
+        otp = random.randint(100001, 999998)
+        subject = "メール認証のお知らせ"
+        body = f"""
+            <h2>{otp}</h2>
+            <h3>
+                ワンタイムパスワードは上記になります。<br>
+                有効期限は{TimeBase.length_name_by_authn_mail}です。<br>
+                入力は一度限りです。
+            </h3>
+            <br>
+            <br>
+            <h3>お問い合わせは <a href="{HyperLink.instagram}">公式Instagram</a> からも可能です。</h3>
+        """
+        try:
+            send_email(addr, subject, body)
+            before_mail = BeforeAuthnMail(user_id=user.id, mail=addr, otp=generate_password_hash(otp))
+            db.session.add(before_mail)
+            db.session.commit()
+            return make_response()
+        except:
+            return make_response(301)
+
+#! メール認証_段階2(POST)
+@app.route("api/user/authnMail", methods=["POST"])
+@login_required
+@expel_frozen_account
+def authnMail():
+    user = current_user
+    user = current_user_need_not_login()
+    befor_authns = BeforeAuthnMail.query.filter_by(user_id=user.id).all()
+    if request.method == "POST":
+        json_data = request.get_json()
+        data = json_data["data"]
+        totp = data["totp"]
+        for b in befor_authns:
+            if(check_password_hash(b.otp, totp) and 
+               time() < b.issuance_ut + TimeBase.totp_valid_length_by_authn_mail):
+                user.mail = b.mail
+            db.session.delete(b)
+            db.session.commit()
+        return make_response()
 
 #! ログアウト機能(get)
 @app.route("/api/logout", methods=["GET"])
