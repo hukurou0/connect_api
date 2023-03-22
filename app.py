@@ -406,11 +406,17 @@ def getInquiryForms():
         {"content": "もっとアプリを良くするために"},
         {"content": "その他"},
     ] 
+    user = current_user
+    user = current_user_need_not_login()
+    is_authn = False if(user.mail is None or "$" in user.mail) else True
     if request.method == "GET":
         data = {
             "headline": headlines 
         }
-        return make_response(1, data)
+        if(is_authn):
+            return make_response(1, data)
+        else:
+            return make_response(301, data)
 
 # 問い合わせ機能(post) --Unit Tested   
 @app.route("/api/sendInquiryForms", methods=["POST"])
@@ -439,13 +445,13 @@ def sendInquiryForms():
         db.session.commit()
         inquiry_mail_all = Inquiry_mail.query.filter_by(mail = user.mail).all()
         inquiry_mail_id = inquiry_mail_all[-1].id
+        subject = "お問い合わせ ( by ユーザー ) "
         inquiry_html = f"""
             <h2>問い合わせ概要: {headline}</h2>
             <h2>ユーザーID: {user_id}</h2>
             <h2>本文: <br>{body_html}</h2>
             <h2>key: {inquiry_mail_id}</h2>
         """
-        subject = "お問い合わせ ( by ユーザー ) "
         to_addresses = [User.query.filter_by(id = a.user_id).one().mail \
                          for a in Admin.query.filter_by(privilege = 2).all()]
         send_email(to_addresses, subject, inquiry_html)
