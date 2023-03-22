@@ -14,7 +14,7 @@ from database_defined import app, db, get_key, increment_key
 from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
                                Task, Old_task, Task_regist, Task_regist_kind, BeforeAuthnMail)
 from typing import Union
-from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str
+from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str, datetime_to_str, trans_unixtime_datetime
 from pack_decorater import  QueueOption, login_required, current_user_need_not_login, multiple_control, expel_frozen_account
 from pack_datetime_unixtime_serial import TimeBase
 import traceback
@@ -555,21 +555,22 @@ def sendUserTotp():
         data = json_data["data"]
         addr = data["mail"]
         otp = random.randint(100001, 999998)
-        subject = "メール認証のお知らせ"
+        dt = datetime.today()
+        subject = "【Connect】メール認証のお知らせ"
         body = f"""
-            <h2>{otp}</h2>
-            <h3>
-                ワンタイムパスワードは上記になります。<br>
-                有効期限は{TimeBase.length_name_by_authn_mail}です。<br>
-                入力は一度限りです。
-            </h3>
+            <p><strong>{otp}</strong><br>画面の確認コード入力欄に上記の数字を入力してください。</p>
             <br>
+            <p>確認コードは<br>{datetime_to_str(dt, timedelta(minutes=30))} まで有効です。</p>
             <br>
-            <h3>お問い合わせは <a href="{HyperLink.instagram}">公式Instagram</a> からも可能です。</h3>
+            <p>※このメールは、お客様がメール認証を行う際にお客様のメールアドレスあてに自動的に送られています。</p>
+            <br>
+            <p>お問い合わせは <a href="{HyperLink.instagram}">公式Instagram</a> からも可能です。</p>
+            <br>
+            <p>Connect</p>
         """
         try:
             send_email(addr, subject, body)
-            before_mail = BeforeAuthnMail(user_id=user.id, mail=addr, otp=generate_password_hash(otp))
+            before_mail = BeforeAuthnMail(user_id=user.id, mail=addr, otp=generate_password_hash(otp), issuance_ut=trans_unixtime_datetime(dt))
             db.session.add(before_mail)
             db.session.commit()
             return make_response()
