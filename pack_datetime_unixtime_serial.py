@@ -50,33 +50,6 @@ def extract_elem_from_iso(iso: str) -> dict[int]:
     return dt_elem
 
 
-#*---------------------------------- (現時刻)状態取得関数 -------------------------------------------------*#
-
-# 現時刻の iso8601 を取得
-def get_iso(dt: datetime = datetime.today(), is_basic_format: bool = True):
-    iso = trans_datetime_iso(dt, is_basic_format)
-    return iso
-
-# 現時刻の YY/MM/DD hh:mm:ss を取得
-def get_str_dt(dt: datetime = datetime.today(), is_adding_under_date: bool = True):
-    str_dt = trans_datetime_str(dt, is_adding_under_date)
-    return str_dt
-
-# 整数型シリアル値を取得
-def get_int_serial(today_year = date.today().year,today_month = date.today().month,today_day = date.today().day):
-    today_year_date =  str(today_year) + '/' + str(today_month) + "/" + str(today_day)
-    dt = datetime.strptime(today_year_date, '%Y/%m/%d') - datetime(1899, 12, 31)
-    serial = dt.days + 1
-    return serial
-# 浮動小数点型シリアル値を取得
-def get_float_serial(today_year = date.today().year,today_month = date.today().month,today_day = date.today().day,now_hour = datetime.now().hour, now_minute = datetime.now().minute):
-    today_year_date =  str(today_year) + '/' + str(today_month) + "/" + str(today_day)
-    dt = datetime.strptime(today_year_date, '%Y/%m/%d') - datetime(1899, 12, 31)
-    today_serial = dt.days + 1
-    now_serial = today_serial + now_hour*0.04166667 + now_minute*0.00069444
-    return now_serial
-
-
 #*------------------------------------- DateTime <-> Other ---------------------------------------------------*#
 
 # datetime <-> ut 
@@ -153,6 +126,33 @@ def serial_to_str(serial: Union[int, float]) -> str:
     return str_datetime
 
 
+#*---------------------------------- (現時刻)状態取得関数 -------------------------------------------------*#
+
+# 現時刻の iso8601 を取得
+def get_iso(dt: datetime = datetime.today(), is_basic_format: bool = True):
+    iso = trans_datetime_iso(dt, is_basic_format)
+    return iso
+
+# 現時刻の YY/MM/DD hh:mm:ss を取得
+def get_str_dt(dt: datetime = datetime.today(), is_round_down_below_date: bool = False):
+    str_dt = trans_datetime_str(dt, is_round_down_below_date)
+    return str_dt
+
+# 整数型シリアル値を取得
+def get_int_serial(today_year = date.today().year,today_month = date.today().month,today_day = date.today().day):
+    today_year_date =  str(today_year) + '/' + str(today_month) + "/" + str(today_day)
+    dt = datetime.strptime(today_year_date, '%Y/%m/%d') - datetime(1899, 12, 31)
+    serial = dt.days + 1
+    return serial
+# 浮動小数点型シリアル値を取得
+def get_float_serial(today_year = date.today().year,today_month = date.today().month,today_day = date.today().day,now_hour = datetime.now().hour, now_minute = datetime.now().minute):
+    today_year_date =  str(today_year) + '/' + str(today_month) + "/" + str(today_day)
+    dt = datetime.strptime(today_year_date, '%Y/%m/%d') - datetime(1899, 12, 31)
+    today_serial = dt.days + 1
+    now_serial = today_serial + now_hour*0.04166667 + now_minute*0.00069444
+    return now_serial
+
+
 #*------------------------------------ テスト -----------------------------------------------------------*#
 if(__name__=="__main__"):
     #! シリアル値は分単位以下の信頼性は無い。
@@ -163,7 +163,7 @@ if(__name__=="__main__"):
     print(f'DateTime <-> ISO8601(基本形式)   | {trans_datetime_iso(get_iso())} | {trans_datetime_iso(datetime.today(), True)}')
     print(f'DateTime <-> ISO8601(拡張形式)   | {trans_datetime_iso(get_iso())} | {trans_datetime_iso(datetime.today(), False)}')
     print(f'DateTime <-> YYYY/MM/DD hh:mm:ss | {trans_datetime_str(get_str_dt())} | {trans_datetime_str(datetime.today())}')
-    print(f'DateTime <-> YYYY/MM/DD          | {trans_datetime_iso(get_str_dt(is_adding_under_date=False))} | {trans_datetime_str(datetime.today(), True)}')
+    print(f'DateTime <-> YYYY/MM/DD          | {trans_datetime_iso(get_str_dt(is_round_down_below_date=True))} | {trans_datetime_str(datetime.today(), True)}')
     print(f'DateTime <-> SerialValue         | {trans_datetime_serial(get_float_serial())} | {trans_datetime_serial(datetime.today(), False)}')
     print(f'UnixTime <-> ISO8601(基本形式)   | {trans_ut_iso(get_iso())}          | {trans_ut_iso(time(), True)}')
     print(f'SerialValue -> ISO8601(基本形式) | {serial_to_iso(get_float_serial(), True)}')
