@@ -77,7 +77,7 @@ def get_float_serial(today_year = date.today().year,today_month = date.today().m
     return now_serial
 
 
-#*------------------------------------- trans via datetime ----------------------------------------*#
+#*------------------------------------- DateTime <-> Other ---------------------------------------------------*#
 
 # datetime <-> ut 
 def trans_datetime_ut(t : Union[datetime, int]) -> Union[datetime, int]:
@@ -126,7 +126,7 @@ def trans_datetime_serial(t: Union[datetime, int, float], is_to_int: bool = True
     return t
 
 
-#*---------------------------------------- trans other into other ----------------------------------------------------------------*#
+#*------------------------------- Convert other to other via DateTime -------------------------------------------------------*#
 
 # ut <-> iso8601 
 def trans_ut_iso(t: Union[int, float], is_basic_format: bool = True) -> str:
