@@ -65,13 +65,13 @@ def get_str_dt(dt: datetime = datetime.today(), is_adding_under_date: bool = Tru
 # 整数型シリアル値を取得
 def get_int_serial(today_year = date.today().year,today_month = date.today().month,today_day = date.today().day):
     today_year_date =  str(today_year) + '/' + str(today_month) + "/" + str(today_day)
-    dt = datetime.strptime(today_year_date, '%Y/%m/%d')- datetime(1899, 12, 31)
+    dt = datetime.strptime(today_year_date, '%Y/%m/%d') - datetime(1899, 12, 31)
     serial = dt.days + 1
     return serial
 # 浮動小数点型シリアル値を取得
 def get_float_serial(today_year = date.today().year,today_month = date.today().month,today_day = date.today().day,now_hour = datetime.now().hour, now_minute = datetime.now().minute):
     today_year_date =  str(today_year) + '/' + str(today_month) + "/" + str(today_day)
-    dt = datetime.strptime(today_year_date, '%Y/%m/%d')- datetime(1899, 12, 31)
+    dt = datetime.strptime(today_year_date, '%Y/%m/%d') - datetime(1899, 12, 31)
     today_serial = dt.days + 1
     now_serial = today_serial + now_hour*0.04166667 + now_minute*0.00069444
     return now_serial
@@ -113,30 +113,17 @@ def trans_datetime_str(t: Union[datetime, str], is_adding_under_date: bool = Tru
 def trans_datetime_serial(t: Union[datetime, int, float], is_int: bool = True):
     if(isinstance(t, datetime)):
         t = round_datetime_ut(t)
-        t = get_int_serial(t.year, t.month, t.day) if(is_int) else get_float_serial(t.year, t.month, t.day, t.hour, t.minute, t.second)
+        t = get_int_serial(t.year, t.month, t.day) if(is_int) else get_float_serial(t.year, t.month, t.day, t.hour, t.minute)
     elif(isinstance(t, int) or isinstance(t, float)):
-        t = datetime(1899,12,30) + timedelta(t) + timedelta(seconds=1)  # 1秒足しているのは切り捨て誤差緩和のため
+        serial = t
+        t = datetime(1899,12,30) + timedelta(t)
+        if(isinstance(serial, float)):
+            t += timedelta(seconds=1)  # 1秒足しているのは切り捨て誤差緩和のため
+        t = round_datetime_ut(t)
     return t
 
 
 #*---------------------------------------- trans other into other ----------------------------------------------------------------*#
-
-# serial -> "YYYY/MM/DD" or "YYYY/MM/DD hh:mm:ss"
-def serial_to_str(serial: Union[int, float]) -> str:
-    if(isinstance(serial, float)):
-        str_datetime = (datetime(1899,12,30) + timedelta(serial) + timedelta(seconds=1)).strftime('%Y/%m/%d %H:%M:%S')
-    elif(isinstance(serial, int)):
-        str_datetime = (datetime(1899,12,30) + timedelta(serial)).strftime('%Y/%m/%d')
-    return str_datetime
-
-# serial -> iso8601　
-def serial_to_iso(serial: Union[int, float], is_basic_format: bool = True):
-    iso_datetime = ""
-    if(is_basic_format):
-        iso_datetime = (datetime(1899,12,30) + timedelta(serial) + timedelta(seconds=1)).strftime('%Y%m%dT%H%M%S+0900')
-    else:
-        iso_datetime = (datetime(1899,12,30) + timedelta(serial) + timedelta(seconds=1)).strftime('%Y-%m-%dT%H:%M:%S+09:00')
-    return iso_datetime
 
 # ut <-> iso8601 
 def trans_ut_iso(t: Union[int, float], is_basic_format: bool = True):
@@ -149,18 +136,38 @@ def trans_ut_iso(t: Union[int, float], is_basic_format: bool = True):
         t = trans_datetime_ut(t)
     return t
 
+# serial -> iso8601　
+def serial_to_iso(serial: Union[int, float], is_basic_format: bool = True):
+    iso = ""
+    basic_f = '%Y%m%dT%H%M%S+0900'
+    extended_f = '%Y-%m-%dT%H:%M:%S+09:00'
+    iso = datetime(1899,12,30) + timedelta(serial) if(isinstance(serial, int)) else datetime(1899,12,30) + timedelta(serial, seconds=1)
+    iso = iso.strftime(basic_f) if(is_basic_format) else iso.strftime(extended_f)
+    return iso
+
+# serial -> "YYYY/MM/DD" or "YYYY/MM/DD hh:mm:ss"
+def serial_to_str(serial: Union[int, float]) -> str:
+    if(isinstance(serial, float)):
+        str_datetime = (datetime(1899,12,30) + timedelta(serial) + timedelta(seconds=1)).strftime('%Y/%m/%d %H:%M:%S')
+    elif(isinstance(serial, int)):
+        str_datetime = (datetime(1899,12,30) + timedelta(serial)).strftime('%Y/%m/%d')
+    return str_datetime
 
 #* テスト
 if(__name__=="__main__"):
     #! シリアル値は分単位以下の信頼性は無い。
     print()
-    print(f'UnixTime 秒未満切り捨て | {round_datetime_ut(time())}')
-    print(f'DateTime 秒未満切り捨て | {round_datetime_ut(datetime.today())}')
-    print(f'Datetime <-> UnixTime | {trans_datetime_ut(datetime.today())} | {trans_datetime_ut(time())}')
-    print(f'DateTime <-> ISO8601(基本形式) | {trans_datetime_iso(datetime.today(), True)} | {trans_datetime_iso(get_iso())}')
-    print(f'Datetime <-> ISO8601(拡張形式) | {trans_datetime_iso(datetime.today(), False)} | {trans_datetime_iso(get_iso())}')
-    print(f'Datetime <-> YYYY/MM/DD | {trans_datetime_str(datetime.today(), False)} | {trans_datetime_iso(get_str_dt(is_adding_under_date=False))}')
-    print(f'Datetime <-> YYYY/MM/DD hh:mm:ss | {trans_datetime_str(datetime.today(), True)} | {trans_datetime_iso(get_str_dt())}')
+    print(f'DateTime 秒未満切り捨て          | {round_datetime_ut(datetime.today())}')
+    print(f'UnixTime 秒未満切り捨て          | {round_datetime_ut(time())}')
+    print(f'Datetime <-> UnixTime            | {trans_datetime_ut(time())} | {trans_datetime_ut(datetime.today())}')
+    print(f'DateTime <-> ISO8601(基本形式)   | {trans_datetime_iso(get_iso())} | {trans_datetime_iso(datetime.today(), True)}')
+    print(f'DateTime <-> ISO8601(拡張形式)   | {trans_datetime_iso(get_iso())} | {trans_datetime_iso(datetime.today(), False)}')
+    print(f'DateTime <-> YYYY/MM/DD          | {trans_datetime_iso(get_str_dt(is_adding_under_date=False))} | {trans_datetime_str(datetime.today(), False)}')
+    print(f'DateTime <-> YYYY/MM/DD hh:mm:ss | {trans_datetime_str(get_str_dt())} | {trans_datetime_str(datetime.today(), True)}')
+    print(f'DateTime <-> SerialValue         | {trans_datetime_serial(get_float_serial())} | {trans_datetime_serial(datetime.today(), False)}')
+    print(f'UnixTime <-> ISO8601(基本形式)   | {trans_ut_iso(get_iso())}          | {trans_ut_iso(time(), True)}')
+    print(f'SerialValue -> ISO8601(基本形式) | {serial_to_iso(get_float_serial(), True)}')
+    print(f'SerialValue -> YYYY/MM/DD        | {serial_to_str(get_int_serial())}')
     print()
     
 
