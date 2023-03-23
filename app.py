@@ -12,7 +12,7 @@ from database_defined import app, db, get_key, increment_key
 from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
                                Task, Old_task, Task_regist, Task_regist_kind, Manage_primary_key)
 from typing import Union
-from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str
+from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str, serial_to_iso
 from pack_decorater import  QueueOption, login_required, current_user_need_not_login, multiple_control, expel_frozen_account
 from pack_datetime_unixtime_serial import TimeBase
 import traceback
@@ -439,7 +439,7 @@ def taskGetTask():
         for task_regist in task_regists:
             regist_time.append(task_regist.regist_time)
         if regist_time != []:
-            recent_regist_time = max(regist_time)
+            recent_regist_time: float = max(regist_time)
             now_serial = get_float_serial()
             if now_serial >= recent_regist_time + 3:
                 __ = {"task_regist":False}
@@ -454,6 +454,9 @@ def taskGetTask():
         
         #残りの課題表示出来る時間
         hour = int((recent_regist_time + 3 - now_serial)/0.04166667) 
+
+        #! 表示期限を示すシリアル値をiso8601に変換
+        iso_visible_limit = serial_to_iso(recent_regist_time + 3)
         
         #課題情報を作成ーーーーーーーーーーーーーーーーーーーーーーーーー
         taken_subject_ids = []
