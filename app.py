@@ -40,7 +40,7 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 @login_manager.unauthorized_handler
 def unauthorized():
-    return redirect('/login')
+    return redirect('/unlogin')
 
 def generate_star(difficulty: int) -> str:
     star = ""
@@ -73,20 +73,20 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
     ----------
     ログイン条件(制限時間中でなく入力内容が正しい)を満たす時: True
     """
-    user = User.query.filter_by(username==username).one_or_none()
+    user = User.query.filter_by(username=username).one_or_none()
     if(user is None): 
-        return False
-    login_limiter = Login_limiter(user_id=user.id, is_stopped_access=True).all()
+        return False,None
+    login_limiter = Login_limiter.query.filter_by(user_id=user.id, is_stopped_access=True).all()
     # login_limmiter リストが空でないとき かつ ログイン制限時間中でないとき (短絡評価のため login_limiter リストは空でも良い)
     if(login_limiter and time() < login_limiter[-1].login_ut + TimeBase.stop_duration):
         if(is_update_restriction): 
             l = Login_limiter(user_id=user.id, is_stopped_access=True)
             db.session.add(l)
             db.session.commit()
-        return False
+        return False,None
     # ログイン未制限中 かつ ログイン成功時
     elif(check_password_hash(user.password, password)):
-        return True
+        return True,user
     else:
         login_fails_by_user = Login_limiter.query.filter(Login_limiter.user_id == user.id, \
                                                          TimeBase.focus_lower_limit_ut < Login_limiter.login_ut).all()
@@ -97,7 +97,7 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
             l_l = Login_limiter(user_id=user.id) 
         db.session.add(l_l)
         db.session.commit()
-        return False
+        return False,None
 
 # サインアップ機能(get), ユーザー情報編集機能(get) --Unit Tested 
 @app.route("/api/getDepartment", methods=["GET"])
@@ -122,7 +122,7 @@ def signup():
             data = json_data["data"]
             username = data["username"]
             password = data["password"]
-            department_id = data["department"]
+            department_id = data["department_id"]
         except:
             return make_response(2)
         
@@ -163,7 +163,7 @@ def modify_user():
         json_data = request.get_json()
         try:
             data = json_data["data"]
-            department_id = data["department"]
+            department_id = data["department_id"]
         except:
             return make_response(2)
         
@@ -524,6 +524,7 @@ def getinfo():
     data = {
         "username":user.username,
         "department":s.gakka,
+        "department_id":user.department_id,
         "mail":user.mail
     }
     return make_response(1,data)
@@ -536,6 +537,27 @@ def logout():
     if request.method == "GET":
         logout_user()  # セッション情報の削除  #? 変更となる可能性あり
         return make_response()
+    
+@app.route("/api/login", methods=["POST"])
+def login():
+    if request.method == "POST":
+        json_data = request.get_json()
+        try:
+            data = json_data["data"]
+            username = data["username"]
+            password = data["password"]
+        except:
+            return make_response(2)
+        can_login,user = is_strict_login_possible(username,password)
+        if can_login:
+            login_user(user) 
+            return make_response()
+        else:
+            return make_response(101)
+        
+@app.route("/unlogin", methods=["GET"])
+def unlogin():
+    return make_response(4)
             
 if __name__=='__main__':
     app.run(debug=True, threaded=True)
