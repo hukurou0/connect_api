@@ -40,7 +40,7 @@ def extract_elem_from_iso(iso: str) -> dict[int]:
     dt_elem = {
         "year": int(iso[:4]),
         "month": int(iso[4:6]),
-        "date": int(iso[6:8]),
+        "day": int(iso[6:8]),
         "hour": int(iso[8:10]),
         "minute": int(iso[10:12]),
         "second": int(iso[12:14]),
@@ -91,29 +91,32 @@ def trans_datetime_ut(t : Union[datetime, int]) -> Union[datetime, int]:
 
 # datetime <-> iso8601
 def trans_datetime_iso(t: Union[datetime, str], is_basic_format: bool = True):
+    """ The 2nd arg is used in only datetime -> iso """
     if(isinstance(t, datetime)):
         t = round_datetime_ut(t)
         t = t.strftime('%Y%m%dT%H%M%S+0900') if(is_basic_format) else t.strftime('%Y-%m-%dT%H:%M:%S+09:00')
     elif(isinstance(t, str)):
         t = extract_elem_from_iso(t)
-        t = datetime(t["year"], t["month"], t["date"], t["hour"], t["minute"], t["second"])
+        t = datetime(t["year"], t["month"], t["day"], t["hour"], t["minute"], t["second"])
     return t
 
 # datetime <-> "YYYY/MM/DD hh:mm:ss" or "YYYY/MM/DD"
-def trans_datetime_str(t: Union[datetime, str], is_adding_under_date: bool = True):
+def trans_datetime_str(t: Union[datetime, str], is_round_down_below_date: bool = False) -> str:
+    """ The 2nd arg is only used in datetime -> str. If you round down to the nearest a day then 2nd arg is True. """
     if(isinstance(t, datetime)):
         t = round_datetime_ut(t)
-        t = t.strftime('%Y/%m/%d %H:%M:%S') if(is_adding_under_date) else t.strftime('%Y/%m/%d')
+        t = t.strftime('%Y/%m/%d') if(is_round_down_below_date) else t.strftime('%Y/%m/%d %H:%M:%S')
     elif(isinstance(t, str)):
         t = extract_elem_from_iso(t)
-        t = datetime(t["year"], t["month"], t["date"], t["hour"], t["minute"], t["second"])
+        t = datetime(t["year"], t["month"], t["day"], t["hour"], t["minute"], t["second"])
     return t
 
 # datetime <-> serial
-def trans_datetime_serial(t: Union[datetime, int, float], is_int: bool = True):
+def trans_datetime_serial(t: Union[datetime, int, float], is_to_int: bool = True) -> Union[int, float]:
+    """ The 2nd arg is only used in datetime -> serial. If you round down to the nearest day then 2nd arg is True. """
     if(isinstance(t, datetime)):
         t = round_datetime_ut(t)
-        t = get_int_serial(t.year, t.month, t.day) if(is_int) else get_float_serial(t.year, t.month, t.day, t.hour, t.minute)
+        t = get_int_serial(t.year, t.month, t.day) if(is_to_int) else get_float_serial(t.year, t.month, t.day, t.hour, t.minute)
     elif(isinstance(t, int) or isinstance(t, float)):
         serial = t
         t = datetime(1899,12,30) + timedelta(t)
@@ -126,18 +129,20 @@ def trans_datetime_serial(t: Union[datetime, int, float], is_int: bool = True):
 #*---------------------------------------- trans other into other ----------------------------------------------------------------*#
 
 # ut <-> iso8601 
-def trans_ut_iso(t: Union[int, float], is_basic_format: bool = True):
+def trans_ut_iso(t: Union[int, float], is_basic_format: bool = True) -> str:
+    """ The 2nd arg is used in only datetime -> iso """
     if(isinstance(t, int) or isinstance(t, float)):
         t = trans_datetime_ut(t)
         t = t.strftime('%Y%m%dT%H%M%S+0900') if(is_basic_format) else t.strftime('%Y-%m-%dT%H:%M:%S+09:00')
     elif(isinstance(t, str)):
         t = extract_elem_from_iso(t)
-        t = datetime(t["year"], t["month"], t["date"], t["hour"], t["minute"], t["second"])
+        t = datetime(t["year"], t["month"], t["day"], t["hour"], t["minute"], t["second"])
         t = trans_datetime_ut(t)
     return t
 
 # serial -> iso8601　
-def serial_to_iso(serial: Union[int, float], is_basic_format: bool = True):
+def serial_to_iso(serial: Union[int, float], is_basic_format: bool = True) -> str:
+    """ The 2nd arg is used in only datetime -> iso. If the 1st arg is int, this convert is less than a day is set to 0. """
     iso = ""
     basic_f = '%Y%m%dT%H%M%S+0900'
     extended_f = '%Y-%m-%dT%H:%M:%S+09:00'
@@ -162,8 +167,8 @@ if(__name__=="__main__"):
     print(f'Datetime <-> UnixTime            | {trans_datetime_ut(time())} | {trans_datetime_ut(datetime.today())}')
     print(f'DateTime <-> ISO8601(基本形式)   | {trans_datetime_iso(get_iso())} | {trans_datetime_iso(datetime.today(), True)}')
     print(f'DateTime <-> ISO8601(拡張形式)   | {trans_datetime_iso(get_iso())} | {trans_datetime_iso(datetime.today(), False)}')
-    print(f'DateTime <-> YYYY/MM/DD          | {trans_datetime_iso(get_str_dt(is_adding_under_date=False))} | {trans_datetime_str(datetime.today(), False)}')
-    print(f'DateTime <-> YYYY/MM/DD hh:mm:ss | {trans_datetime_str(get_str_dt())} | {trans_datetime_str(datetime.today(), True)}')
+    print(f'DateTime <-> YYYY/MM/DD hh:mm:ss | {trans_datetime_str(get_str_dt())} | {trans_datetime_str(datetime.today())}')
+    print(f'DateTime <-> YYYY/MM/DD          | {trans_datetime_iso(get_str_dt(is_adding_under_date=False))} | {trans_datetime_str(datetime.today(), True)}')
     print(f'DateTime <-> SerialValue         | {trans_datetime_serial(get_float_serial())} | {trans_datetime_serial(datetime.today(), False)}')
     print(f'UnixTime <-> ISO8601(基本形式)   | {trans_ut_iso(get_iso())}          | {trans_ut_iso(time(), True)}')
     print(f'SerialValue -> ISO8601(基本形式) | {serial_to_iso(get_float_serial(), True)}')
