@@ -17,6 +17,7 @@ from pack_decorater import  QueueOption, login_required, current_user_need_not_l
 from pack_datetime_unixtime_serial import TimeBase
 import traceback
 from psycopg2 import errors as psycopg2_errors
+from pack_func import create_task_entity,create_task_entity_in_apitaskgetTasks
 
 #必要な準備
 ctx = app.app_context()
@@ -379,19 +380,8 @@ def taskGetTasks():
     user = current_user
     user = current_user_need_not_login()
     if request.method == "GET":
-        tasks_list = []
         tasks:list = Task.query.filter_by(user_num=user.id).all()
-        for task in tasks:
-            subject = Subject.query.filter_by(id=task.subject_id).one()
-            tasks_list += [
-                {
-                    "id": task.id,
-                    "subject_name": subject.subject_name,
-                    "summary": task.summary,
-                    "detail": task.detail,
-                    "deadline": serial_to_str(task.serial)
-                }
-            ]
+        tasks_list = create_task_entity(tasks)
         data = {
             "tasks" : tasks_list
         }
@@ -478,22 +468,11 @@ def taskGetTask():
             kadai = Task.query.filter_by(subject_id = i).all()  
             extend(kadai)
          
-        tasks_packs = {} 
-        today_serial = get_int_serial()
-        for kadai in kadais:
-            serial = kadai.serial
-            if serial >= today_serial:#期限が終わっていない
-                s = Subject.query.filter_by(id = kadai.subject_id).one()
-                tasks_packs[kadai.id] = {
-                    "subject_name": s.subject_name,
-                    "summary": kadai.summary,
-                    "detail": kadai.detail,
-                    "deadline": f"{(datetime(1899,12,30) + timedelta(kadai.serial)).strftime('%m/%d')}",
-                    "difficulty": kadai.difficulty
-                }
+        tasks_packs = create_task_entity_in_apitaskgetTasks()
          
         #all_tasks_idとhard_tasks_idの振り分け
         all_tasks_id, hard_tasks_id = [],[]
+        today_serial = get_int_serial()
         for kadai in kadais:
             serial = kadai.serial
             if serial >= today_serial:#期限が終わっていない
