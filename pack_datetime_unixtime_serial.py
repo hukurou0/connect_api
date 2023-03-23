@@ -132,33 +132,28 @@ def trans_datetime_serial(t: Union[datetime, int, float], is_to_int: bool = True
 def trans_ut_iso(t: Union[int, float], is_basic_format: bool = True) -> str:
     """ The 2nd arg is used in only datetime -> iso """
     if(isinstance(t, int) or isinstance(t, float)):
-        t = trans_datetime_ut(t)
-        t = t.strftime('%Y%m%dT%H%M%S+0900') if(is_basic_format) else t.strftime('%Y-%m-%dT%H:%M:%S+09:00')
+        dt = trans_datetime_ut(t)
+        t = trans_datetime_iso(dt, is_basic_format)
     elif(isinstance(t, str)):
-        t = extract_elem_from_iso(t)
-        t = datetime(t["year"], t["month"], t["day"], t["hour"], t["minute"], t["second"])
-        t = trans_datetime_ut(t)
+        dt = trans_datetime_iso(t)
+        t = trans_datetime_ut(dt)
     return t
 
 # serial -> iso8601　
 def serial_to_iso(serial: Union[int, float], is_basic_format: bool = True) -> str:
     """ The 2nd arg is used in only datetime -> iso. If the 1st arg is int, this convert is less than a day is set to 0. """
-    iso = ""
-    basic_f = '%Y%m%dT%H%M%S+0900'
-    extended_f = '%Y-%m-%dT%H:%M:%S+09:00'
-    iso = datetime(1899,12,30) + timedelta(serial) if(isinstance(serial, int)) else datetime(1899,12,30) + timedelta(serial, seconds=1)
-    iso = iso.strftime(basic_f) if(is_basic_format) else iso.strftime(extended_f)
+    dt = trans_datetime_serial(serial)
+    iso = trans_datetime_iso(dt, is_basic_format)
     return iso
 
 # serial -> "YYYY/MM/DD" or "YYYY/MM/DD hh:mm:ss"
 def serial_to_str(serial: Union[int, float]) -> str:
-    if(isinstance(serial, float)):
-        str_datetime = (datetime(1899,12,30) + timedelta(serial) + timedelta(seconds=1)).strftime('%Y/%m/%d %H:%M:%S')
-    elif(isinstance(serial, int)):
-        str_datetime = (datetime(1899,12,30) + timedelta(serial)).strftime('%Y/%m/%d')
+    dt = trans_datetime_serial(serial)
+    str_datetime = trans_datetime_str(dt, False) if(isinstance(serial, float)) else trans_datetime_str(dt, int)
     return str_datetime
 
-#* テスト
+
+#*------------------------------------ テスト -----------------------------------------------------------*#
 if(__name__=="__main__"):
     #! シリアル値は分単位以下の信頼性は無い。
     print()
