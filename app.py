@@ -8,9 +8,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
 import json
 #from flask_cors import CORS
-from database_defined import app, db, get_key, increment_key
+from database_defined import app, db
 from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
-                               Task, Old_task, Task_regist, Task_regist_kind, Manage_primary_key)
+                               Task, Old_task, Task_regist, Task_regist_kind)
 from typing import Union
 from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str, serial_to_iso
 from pack_decorater import  QueueOption, login_required, current_user_need_not_login, multiple_control, expel_frozen_account
@@ -429,9 +429,9 @@ def taskGetTask():
         #課題表示出来るかの確認ー(履修登録)ーーーーーーーーーーーーーーーー
         taken = Taken.query.filter_by(user_id=user.id).all()
         if taken == []:
-            _ = {"subject_tasken":False}
+            _ = {"subject_taken":False}
         else:
-            _ = {"subject_tasken":True}
+            _ = {"subject_taken":True}
             
         #課題表示出来るかの確認ー(課題登録)ーーーーーーーーーーーーーーーー
         task_regists = Task_regist.query.filter_by(user_id=user.id).all()
@@ -470,8 +470,7 @@ def taskGetTask():
         for i in taken_subject_ids:
             kadai = Task.query.filter_by(subject_id = i).all()  
             extend(kadai)
-         
-        tasks_packs = create_task_entity_in_apitaskgetTasks()
+        tasks_packs = create_task_entity_in_apitaskgetTasks(kadais)
          
         #all_tasks_idとhard_tasks_idの振り分け
         all_tasks_id, hard_tasks_id = [],[]
@@ -489,7 +488,7 @@ def taskGetTask():
                         
         data = {
             "display_ok":display_ok,
-            "hour":hour,
+            "visible_limit":iso_visible_limit,
             "all_tasks_id": all_tasks_id,
             "hard_tasks_id": hard_tasks_id,
             "tasks": tasks_packs

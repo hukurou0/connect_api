@@ -1,7 +1,7 @@
 from flask import current_app
-from database_defined import app, db, get_key, increment_key
+from database_defined import app, db
 from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
-                               Task, Old_task, Task_regist, Task_regist_kind, Manage_primary_key)
+                               Task, Old_task, Task_regist, Task_regist_kind)
 from datetime import datetime, date, timedelta
 from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str
 
