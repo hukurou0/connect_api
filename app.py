@@ -470,7 +470,7 @@ def taskGetTask():
         for i in taken_subject_ids:
             kadai = Task.query.filter_by(subject_id = i).all()  
             extend(kadai)
-        tasks_packs = create_task_entity_in_apitaskgetTasks(kadais)
+        tasks = create_task_entity_in_apitaskgetTasks(kadais)
          
         #all_tasks_idとhard_tasks_idの振り分け
         all_tasks_id, hard_tasks_id = [],[]
@@ -491,7 +491,7 @@ def taskGetTask():
             "visible_limit":iso_visible_limit,
             "all_tasks_id": all_tasks_id,
             "hard_tasks_id": hard_tasks_id,
-            "tasks": tasks_packs
+            "tasks": tasks
         } 
         return make_response(1,data)
 
