@@ -401,7 +401,7 @@ def taskDelete():
             task_id = data["task_id"]
         except:
             return make_response(2)
-        task = Task.query.filter_by(id=task_id)#TaskテーブルからOldTaskテーブルに移すことで削除とする。
+        task = Task.query.filter_by(id=task_id).first()#TaskテーブルからOldTaskテーブルに移すことで削除とする。
         old_task = Old_task(task_id = task.id,user_num = task.user_num,subject_id = task.subject_id,detail = task.detail,summary = task.summary,serial = task.serial)
         task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=5)#Task_registテーブルにログを残す。
         try:
