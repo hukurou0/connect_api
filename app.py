@@ -3,7 +3,7 @@ from flask import current_app
 from flask import request, redirect, url_for, jsonify
 from sqlalchemy import exc, func
 import re
-from flask_login import LoginManager, login_user, logout_user, current_user
+from flask_login import LoginManager, login_user, logout_user, current_user,login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
 import json
@@ -13,7 +13,7 @@ from database_defined import (User, Admin, User_login, Login_limiter, OTP_table,
                                Task, Old_task, Task_regist, Task_regist_kind)
 from typing import Union
 from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str, serial_to_iso
-from pack_decorater import  QueueOption, login_required, current_user_need_not_login, multiple_control, expel_frozen_account
+from pack_decorater import  QueueOption,  multiple_control, expel_frozen_account
 from pack_datetime_unixtime_serial import TimeBase
 import traceback
 from psycopg2 import errors as psycopg2_errors
@@ -159,7 +159,6 @@ def signup():
 @expel_frozen_account
 def modify_user():
     user = current_user
-    user = current_user_need_not_login()
     if request.method == "POST": 
         json_data = request.get_json()
         try:
@@ -186,7 +185,6 @@ def modify_user():
 @expel_frozen_account
 def getSubjet():
     user = current_user
-    user = current_user_need_not_login()
     days = ['mon','tue','wed','thu','fri']
     periods = ['1','2','3','4','5']
     # taken_subject の id 検索のために定義
@@ -224,7 +222,6 @@ def getSubjet():
 @expel_frozen_account
 def taken():
     user = current_user
-    user = current_user_need_not_login()
     if request.method == "POST": 
         json_data = request.get_json()
         try:
@@ -257,7 +254,6 @@ def taken():
 @expel_frozen_account
 def taskRegistGetSubject():
     user = current_user
-    user = current_user_need_not_login() 
     takens_ =  Taken.query.filter_by(user_id = user.id).all()
     takens = []
     for t in takens_:
@@ -311,7 +307,6 @@ def taskRegistCheck():
 @expel_frozen_account
 def taskRegistDuplication():
     user = current_user
-    user = current_user_need_not_login()
     if request.method == "POST":
         json_data = request.get_json()
         try:
@@ -339,7 +334,6 @@ def taskRegistDuplication():
 @expel_frozen_account
 def taskRegistNew():
     user = current_user
-    user = current_user_need_not_login()
     if request.method == "POST":
         try:
             json_data = request.get_json()
@@ -378,7 +372,6 @@ def taskRegistNew():
 @expel_frozen_account
 def taskGetTasks():
     user = current_user
-    user = current_user_need_not_login()
     if request.method == "GET":
         tasks:list = Task.query.filter_by(user_num=user.id).all()
         tasks_list = create_task_entity(tasks)
@@ -393,7 +386,6 @@ def taskGetTasks():
 @expel_frozen_account
 def taskDelete():
     user = current_user
-    user = current_user_need_not_login()
     if request.method == "POST": 
         json_data = request.get_json()
         try:
@@ -424,7 +416,6 @@ def taskDelete():
 @expel_frozen_account
 def taskGetTask():
     user = current_user
-    user = current_user_need_not_login()
     if request.method == "GET": 
         #課題表示出来るかの確認ー(履修登録)ーーーーーーーーーーーーーーーー
         taken = Taken.query.filter_by(user_id=user.id).all()
@@ -518,7 +509,6 @@ def taskGetTask():
 @expel_frozen_account
 def getinfo():
     user = current_user
-    user = current_user_need_not_login()
     s:Gakka = Gakka.query.filter_by(id = user.department_id).one()
     task_regists = Task_regist.query.filter_by(user_id=user.id).all()
     regist_time = []
@@ -559,7 +549,7 @@ def login():
             return make_response(2)
         can_login,user = is_strict_login_possible(username,password)
         if can_login:
-            login_user(user) 
+            login_user(user,remember=True) 
             return make_response()
         else:
             return make_response(101)
