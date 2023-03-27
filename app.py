@@ -470,7 +470,25 @@ def taskGetTask():
         for i in taken_subject_ids:
             kadai = Task.query.filter_by(subject_id = i).all()  
             extend(kadai)
-        tasks = create_task_entity_in_apitaskgetTasks(kadais)
+        tasks = []
+        today_serial = get_int_serial()
+        for task in kadais:
+            serial = task.serial
+            if serial >= today_serial:
+                subject:Subject = Subject.query.filter_by(id=task.subject_id).one()
+                tasks += [
+                    {
+                        "subject_id":subject.id,
+                        "subject_name": subject.subject_name,
+                        "task_id": task.id,
+                        "deadline_year":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%Y'),
+                        "deadline_month":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%m'),
+                        "deadline_day":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%d'),
+                        "summary": task.summary,
+                        "detail": task.detail,
+                        "difficulty":task.difficulty
+                    }
+                ]  
          
         #all_tasks_idとhard_tasks_idの振り分け
         all_tasks_id, hard_tasks_id = [],[]
