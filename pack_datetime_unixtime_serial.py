@@ -67,7 +67,7 @@ def trans_datetime_iso(t: Union[datetime, str], is_basic_format: bool = True):
     """ The 2nd arg is used in only datetime -> iso """
     if(isinstance(t, datetime)):
         t = round_datetime_ut(t)
-        t = t.strftime('%Y%m%dT%H%M%S+0900') if(is_basic_format) else t.strftime('%Y-%m-%dT%H:%M:%S+09:00')
+        t = t.strftime('%Y%m%dT%H%M%S+0900') if(is_basic_format) else t.strftime('%Y-%m-%dT%H:%M:%S+0900')
     elif(isinstance(t, str)):
         t = extract_elem_from_iso(t)
         t = datetime(t["year"], t["month"], t["day"], t["hour"], t["minute"], t["second"])

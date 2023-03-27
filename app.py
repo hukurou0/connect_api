@@ -456,7 +456,7 @@ def taskGetTask():
         hour = int((recent_regist_time + 3 - now_serial)/0.04166667) 
 
         #! 表示期限を示すシリアル値をiso8601に変換
-        iso_visible_limit = serial_to_iso(recent_regist_time + 3)
+        iso_visible_limit = serial_to_iso(recent_regist_time + 3,is_basic_format = False)
         
         #課題情報を作成ーーーーーーーーーーーーーーーーーーーーーーーーー
         taken_subject_ids = []
@@ -502,11 +502,21 @@ def getinfo():
     user = current_user
     user = current_user_need_not_login()
     s:Gakka = Gakka.query.filter_by(id = user.department_id).one()
+    task_regists = Task_regist.query.filter_by(user_id=user.id).all()
+    regist_time = []
+    for task_regist in task_regists:
+        regist_time.append(task_regist.regist_time)
+    if regist_time != []:
+        recent_regist_time: float = max(regist_time)
+        iso_visible_limit = serial_to_iso(recent_regist_time + 3,is_basic_format = False)
+    else:
+        iso_visible_limit = None
     data = {
         "username":user.username,
         "department":s.gakka,
         "department_id":user.department_id,
-        "mail":user.mail
+        "mail":user.mail,
+        "iso_visible_limit":iso_visible_limit
     }
     return make_response(1,data)
 
