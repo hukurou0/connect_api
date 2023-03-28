@@ -321,13 +321,14 @@ def taskRegistDuplication():
             session = db.session
             session.add(task_regist)
             session.commit()
+            return make_response()
         except:
             session.rollback()
             return make_response(3) 
         finally:
             session.close()
         
-        return make_response()
+        
 
 # 課題登録機能_段階2(post2) --Unit Tested
 @app.route("/api/task/regist/new", methods=["POST"])
@@ -403,13 +404,13 @@ def taskDelete():
             session.add(old_task)
             session.add(task_regist)
             session.commit()
+            return make_response()
         except:
             session.rollback()
             return make_response(3) 
         finally:
             session.close()
              
-        return make_response()
     
 # 課題表示機能(get) --Unit Tested
 @app.route("/api/task/getTasks", methods=["GET"])
