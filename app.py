@@ -13,7 +13,7 @@ from database_defined import (User, Admin, User_login, Login_limiter, OTP_table,
                                Task, Old_task, Task_regist, Task_regist_kind)
 from typing import Union
 from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str, serial_to_iso
-from pack_decorater import  QueueOption,  multiple_control, expel_frozen_account
+from pack_decorater import  QueueOption,  multiple_control, expel_frozen_account, current_user_need_not_login
 from pack_datetime_unixtime_serial import TimeBase
 import traceback
 from psycopg2 import errors as psycopg2_errors
@@ -321,7 +321,7 @@ def taskRegistDuplication():
             session = db.session
             session.add(task_regist)
             session.commit()
-            return make_response()
+            return make_response() #make_response->finaly->returnの順に処理される
         except:
             session.rollback()
             return make_response(3) 
@@ -388,6 +388,7 @@ def taskGetTasks():
 @expel_frozen_account
 def taskDelete():
     user = current_user
+    user = current_user_need_not_login()
     if request.method == "POST": 
         json_data = request.get_json()
         try:
