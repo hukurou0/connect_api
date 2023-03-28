@@ -240,13 +240,14 @@ def taken():
             session = db.session
             session.add_all(new_taken_all)
             session.commit()
+            return make_response()
         except:
             session.rollback()
             return make_response(3) 
         finally:
             session.close()
         
-        return make_response()
+        
 
 # 課題登録機能_段階1(get) --Unit Tested
 @app.route("/api/task/regist/getSubjects", methods=["GET"])
