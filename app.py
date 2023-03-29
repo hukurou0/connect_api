@@ -194,8 +194,9 @@ def getSubjet():
         for period in periods:
             for day in days:
                 subjects = Subject.query.filter_by(period = period, day = day)  # その曜日時限の科目一覧
-                taken_subject = [s for s in subjects if s.id in now_taken_subject_ids]  # その曜日時限の履修科目オブジェクト
-                taken_id = 0 if(taken_subject == []) else taken_subject[0].id  # その曜日時限の履修科目ID
+                subject_ids = [s.id for s in subjects]
+                taken_id_set = set(subject_ids) & set(now_taken_subject_ids)
+                taken_id = 0 if(len(taken_id_set) == 0) else  taken_id_set.pop() # その曜日時限の履修科目ID
                 classes = [{
                     "id": 0,
                     "name": "空きコマ"
