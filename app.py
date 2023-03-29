@@ -190,14 +190,13 @@ def getSubjet():
     # taken_subject の id 検索のために定義. 履修科目IDを要素として持つ配列.
     now_taken_subject_ids = [t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
     if request.method == "GET": 
-        data, classes, taken_id = {}, [], []  # dataとしてクライアントに渡す要素
+        data, taken_id = {}, []
         for period in periods:
             for day in days:
-                classes = [] 
                 subjects = Subject.query.filter_by(period = period, day = day)  # その曜日時限の科目一覧
                 taken_subject = [s for s in subjects if s.id in now_taken_subject_ids]  # その曜日時限の履修科目オブジェクト
                 taken_id = 0 if(taken_subject == []) else taken_subject[0].id  # その曜日時限の履修科目ID
-                classes += [{
+                classes = [{
                     "id": 0,
                     "name": "空きコマ"
                 }]
@@ -211,7 +210,7 @@ def getSubjet():
                     "classes": classes,
                     "taken_id": taken_id
                 }
-        return make_response(1,data)
+        return make_response(1, data)
 
 # 履修登録機能(post) --Unit Tested
 @app.route("/api/taken", methods=["POST"])
