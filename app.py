@@ -190,7 +190,7 @@ def getSubjet():
     # taken_subject の id 検索のために定義. 履修科目IDを要素として持つ配列.
     now_taken_subject_ids = [t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
     if request.method == "GET": 
-        data, taken_id = {}, []
+        data = {}
         for period in periods:
             for day in days:
                 subjects = Subject.query.filter_by(period = period, day = day)  # その曜日時限の科目一覧
