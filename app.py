@@ -149,8 +149,7 @@ def signup():
             #traceback.print_exc()
             session.rollback()
             return make_response(201)
-        finally:
-            session.close()
+        
             
 
 # 所属学科変更機能(post) --Unit Tested
@@ -174,17 +173,17 @@ def modify_user():
         except:
             session.rollback()
             return make_response(3) 
-        finally:
-            session.close()
+    
         
         return make_response()       
 
 # 履修登録機能(get) --Unit Tested
 @app.route("/api/taken/getSubjects", methods=["GET"])
-@login_required
+#@login_required
 @expel_frozen_account
 def getSubjet():
-    user = current_user
+    #user = current_user
+    user = current_user_need_not_login()
     days = ['mon','tue','wed','thu','fri']
     periods = ['1','2','3','4','5']
     # taken_subject の id 検索のために定義
@@ -244,8 +243,7 @@ def taken():
         except:
             session.rollback()
             return make_response(3) 
-        finally:
-            session.close()
+        
         
         
 
@@ -325,8 +323,7 @@ def taskRegistDuplication():
         except:
             session.rollback()
             return make_response(3) 
-        finally:
-            session.close()
+    
         
         
 
@@ -409,8 +406,7 @@ def taskDelete():
         except:
             session.rollback()
             return make_response(3) 
-        finally:
-            session.close()
+
              
     
 # 課題表示機能(get) --Unit Tested
@@ -552,7 +548,7 @@ def login():
             return make_response(2)
         can_login,user = is_strict_login_possible(username,password)
         if can_login:
-            login_user(user,remember=True) 
+            login_user(user) 
             return make_response()
         else:
             return make_response(101)
