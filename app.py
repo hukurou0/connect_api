@@ -182,17 +182,25 @@ def modify_user():
 #@login_required
 @expel_frozen_account
 def getSubjet():
-    #user = current_user
-    user = current_user_need_not_login()
+    user = current_user
     days = ['mon','tue','wed','thu','fri']
     periods = ['1','2','3','4','5']
     # taken_subject の id 検索のために定義. 履修科目IDを要素として持つ配列.
     now_taken_subject_ids = [t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
     if request.method == "GET": 
         data = {}
+        all_subjects = Subject.query.filter_by(department_id = user.department_id)
+        def subject_filter(all_subjects,period,day):
+            subjects = []
+            for subject in all_subjects:
+                if subject.period == period:
+                    if subject.day == day:
+                        subjects.append(subject)
+            return subjects
         for period in periods:
             for day in days:
-                subjects = Subject.query.filter_by(period = period, day = day)  # その曜日時限の科目一覧
+                  # その曜日時限の科目一覧
+                subjects = subject_filter(all_subjects,period,day)
                 taken_id_set = {s.id for s in subjects} & set(now_taken_subject_ids)
                 taken_id = 0 if(len(taken_id_set) == 0) else  taken_id_set.pop() # その曜日時限の履修科目ID
                 classes = [{
