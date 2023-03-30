@@ -186,34 +186,30 @@ def getSubjet():
     user = current_user_need_not_login()
     days = ['mon','tue','wed','thu','fri']
     periods = ['1','2','3','4','5']
-    # taken_subject の id 検索のために定義
+    # taken_subject の id 検索のために定義. 履修科目IDを要素として持つ配列.
     now_taken_subject_ids = [t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
     if request.method == "GET": 
-        def _taken_subject(now_taken_subject_ids_: list[int], subjects: list[Subject]):
-            taken_subject_id = [s for s in subjects if s.id in now_taken_subject_ids_]
-            return taken_subject_id
-        data, classes, taken_id = {}, [], []  # dataとしてクライアントに渡す要素
+        data = {}
         for period in periods:
             for day in days:
-                classes = [] 
-                subjects = Subject.query.filter_by(period = period, day = day)
-                taken_subject = _taken_subject(now_taken_subject_ids, subjects)
-                taken_id = 0 if(taken_subject == []) else taken_subject[0].id
-                classes += [{
+                subjects = Subject.query.filter_by(period = period, day = day)  # その曜日時限の科目一覧
+                taken_id_set = {s.id for s in subjects} & set(now_taken_subject_ids)
+                taken_id = 0 if(len(taken_id_set) == 0) else  taken_id_set.pop() # その曜日時限の履修科目ID
+                classes = [{
                     "id": 0,
                     "name": "空きコマ"
                 }]
                 classes += [
                     {
-                        "id": taken.subject_id,
-                        "name": Subject.query.filter_by(id=taken.subject_id).one().subject_name
+                        "id": s.id,
+                        "name": s.subject_name
                     }
-                for taken in Taken.query.filter_by(user_id = user.id).all()] 
+                for s in subjects] 
                 data[f"{day}{period}"] = {
                     "classes": classes,
                     "taken_id": taken_id
                 }
-        return make_response(1,data)
+        return make_response(1, data)
 
 # 履修登録機能(post) --Unit Tested
 @app.route("/api/taken", methods=["POST"])
@@ -443,7 +439,7 @@ def taskGetTask():
         display_ok.update(**_, **__)
         
         #残りの課題表示出来る時間
-        hour = int((recent_regist_time + 3 - now_serial)/0.04166667) 
+        #hour = int((recent_regist_time + 3 - now_serial)/0.04166667) 
 
         #! 表示期限を示すシリアル値をiso8601に変換
         iso_visible_limit = serial_to_iso(recent_regist_time + 3,is_basic_format = False)
