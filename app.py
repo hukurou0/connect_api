@@ -18,6 +18,7 @@ import traceback
 from psycopg2 import errors as psycopg2_errors
 from pack_func import create_task_entity
 from cryptography.fernet import Fernet
+import secret
 
 #必要な準備
 ctx = app.app_context()
@@ -550,7 +551,8 @@ def login():
         can_login,user = is_strict_login_possible(username,password)
         if can_login:
             id = user.id
-            f = Fernet(b'A7gZZ_f1jfMtmPMzgEXYbWEAZEFLrZb6sGGcxmLMqXA=')
+            key = secret.SECRET_KEY.FERNET_KEY
+            f = Fernet(key.encode('utf-8'))
             token = f.encrypt(f"{id}".encode('utf-8'))
             data = {
                 "user_id":token.decode('utf-8')
