@@ -29,23 +29,3 @@ def create_task_entity(tasks:list):
         ]
     return tasks_list
                 
-def create_task_entity_in_apitaskgetTasks(tasks:list):
-    tasks = []
-    today_serial = get_int_serial()
-    for task in tasks:
-        serial = task.serial
-        if serial >= today_serial:
-            subject:Subject = Subject.query.filter_by(id=task.subject_id).one()
-            tasks += {
-                    "subject_id":subject.id,
-                    "subject_name": subject.subject_name,
-                    "task_id": task.id,
-                    "deadline_year":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%Y'),
-                    "deadline_month":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%m'),
-                    "deadline_day":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%d'),
-                    "summary": task.summary,
-                    "detail": task.detail,
-                    "difficulty":task.difficulty
-                }
-            
-    return tasks

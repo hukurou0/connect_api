@@ -30,26 +30,15 @@ def current_user_need_not_login() -> None | User:
     # return current_user  #!本番環境用   
     current_user_ = User.query.filter_by(id=1).one()
     return current_user_  
-
-# 未ログイン者を弾く関数デコレータ. flask_login モジュールのものと全く同じ. 渡す値のみの記述ゆえここだけではcookieに関わらない.
-def login_required(f):
-    @wraps(f)
-    def decorated_view(*args, **kwargs):
-        return f(*args, **kwargs)  #! テスト環境用
-        if current_app.login_manager._login_disabled:
-            return f(*args, **kwargs)
-        elif not current_user.is_authenticated:
-            return current_app.login_manager.unauthorized()
-        return f(*args, **kwargs)
-    return decorated_view
     
 # 凍結アカウントを弾く関数デコレータ
+# 管理者専用
 def expel_frozen_account(f):
     @wraps(f)
     def _wrapper(*args, **kwargs):
-        return f(*args, **kwargs)  #! テスト環境用
+        #return f(*args, **kwargs)  #! テスト環境用
         adminU = current_user
-        if(user.login_possible==0):
+        if(adminU.login_possible==0):
             logout_user()
             return redirect(url_for("freeze"))
         else:
