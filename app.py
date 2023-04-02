@@ -51,6 +51,8 @@ def get_user(json_data):
     if user is not None: 
         if(user.login_possible==0):
             return None
+    else:
+        return None
     return user
   
 def make_response(status_code:int = 1, data:dict ={}):
