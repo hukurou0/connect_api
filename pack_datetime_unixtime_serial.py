@@ -6,7 +6,7 @@ from typing import Union
 #* 時間制御にまつわる変数[s]
 class TimeBase():
     # User 関連
-    visible_length = 3  # 課題表示の有効日数[日]
+    visible_length = 3 * 60 * 60 * 24  # 課題表示の有効日数[日]
     focus_lower_limit_ut = time() - 60  # ログイン試行回数に着目する時間幅の下限[ut] 
     access_maximum_limit = 10  # 上記時間に対して許容するログイン失敗回数[回]
     stop_duration = 120  # 許容できないログイン失敗回数に到達したときのアクセス不能時間幅[s]
@@ -85,16 +85,13 @@ def trans_datetime_str(t: Union[datetime, str], is_round_down_below_date: bool =
     return t
 
 # datetime <-> serial
-def trans_datetime_serial(t: Union[datetime, int, float], is_to_int: bool = True) -> Union[int, float]:
-    """ The 2nd arg is only used in datetime -> serial. If you round down to the nearest day then 2nd arg is True. """
+def trans_datetime_serial(t: Union[datetime, int, float]) -> Union[int, float]:
+    """ You round down to the nearest a day. """
     if(isinstance(t, datetime)):
         t = round_datetime_ut(t)
-        t = get_int_serial(t.year, t.month, t.day) if(is_to_int) else get_float_serial(t.year, t.month, t.day, t.hour, t.minute)
+        t = get_int_serial(t.year, t.month, t.day)
     elif(isinstance(t, int) or isinstance(t, float)):
-        serial = t
         t = datetime(1899,12,30) + timedelta(t)
-        if(isinstance(serial, float)):
-            t += timedelta(seconds=1)  # 1秒足しているのは切り捨て誤差緩和のため
         t = round_datetime_ut(t)
     return t
 
@@ -111,6 +108,12 @@ def trans_ut_iso(t: Union[int, float], is_basic_format: bool = True) -> str:
         dt = trans_datetime_iso(t)
         t = trans_datetime_ut(dt)
     return t
+
+# ut <-> "YYYY/MM/DD hh:mm:ss"
+def ut_to_str(t: Union[int, float]) -> str:
+    dt = trans_datetime_ut(t)
+    str_ = trans_datetime_str(dt)
+    return str_
 
 # serial -> iso8601　
 def serial_to_iso(serial: Union[int, float], is_basic_format: bool = True) -> str:
@@ -144,13 +147,6 @@ def get_int_serial(today_year = date.today().year,today_month = date.today().mon
     dt = datetime.strptime(today_year_date, '%Y/%m/%d') - datetime(1899, 12, 31)
     serial = dt.days + 1
     return serial
-# 浮動小数点型シリアル値を取得
-def get_float_serial(today_year = date.today().year,today_month = date.today().month,today_day = date.today().day,now_hour = datetime.now().hour, now_minute = datetime.now().minute):
-    today_year_date =  str(today_year) + '/' + str(today_month) + "/" + str(today_day)
-    dt = datetime.strptime(today_year_date, '%Y/%m/%d') - datetime(1899, 12, 31)
-    today_serial = dt.days + 1
-    now_serial = today_serial + now_hour*0.04166667 + now_minute*0.00069444
-    return now_serial
 
 
 #*------------------------------------ テスト -----------------------------------------------------------*#
@@ -164,9 +160,9 @@ if(__name__=="__main__"):
     print(f'DateTime <-> ISO8601(拡張形式)   | {trans_datetime_iso(get_iso())} | {trans_datetime_iso(datetime.today(), False)}')
     print(f'DateTime <-> YYYY/MM/DD hh:mm:ss | {trans_datetime_str(get_str_dt())} | {trans_datetime_str(datetime.today())}')
     print(f'DateTime <-> YYYY/MM/DD          | {trans_datetime_iso(get_str_dt(is_round_down_below_date=True))} | {trans_datetime_str(datetime.today(), True)}')
-    print(f'DateTime <-> SerialValue         | {trans_datetime_serial(get_float_serial())} | {trans_datetime_serial(datetime.today(), False)}')
+    print(f'DateTime <-> SerialValue         | {trans_datetime_serial(get_int_serial())} | {trans_datetime_serial(datetime.today())}')
     print(f'UnixTime <-> ISO8601(基本形式)   | {trans_ut_iso(get_iso())}          | {trans_ut_iso(time(), True)}')
-    print(f'SerialValue -> ISO8601(基本形式) | {serial_to_iso(get_float_serial(), True)}')
+    print(f'SerialValue -> ISO8601(基本形式) | {serial_to_iso(get_int_serial(), True)}')
     print(f'SerialValue -> YYYY/MM/DD        | {serial_to_str(get_int_serial())}')
     print()
     

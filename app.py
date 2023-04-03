@@ -11,7 +11,7 @@ from database_defined import app, db
 from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
                                Task, Old_task, Task_regist, Task_regist_kind)
 from typing import Union
-from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str, serial_to_iso
+from pack_datetime_unixtime_serial import get_int_serial, serial_to_iso, trans_datetime_serial, trans_datetime_ut, trans_ut_iso, ut_to_str
 from pack_decorater import  QueueOption,  multiple_control, expel_frozen_account, current_user_need_not_login
 from pack_datetime_unixtime_serial import TimeBase
 import traceback
@@ -294,7 +294,9 @@ def taskRegistCheck():
         return make_response(2)
     
     deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
-    tasks = Task.query.filter_by(subject_id=subject_id, serial=deadline_serial).all()
+    deadline_datetime = trans_datetime_serial(deadline_serial)
+    deadline_ut = trans_datetime_ut(deadline_datetime)
+    tasks = Task.query.filter_by(subject_id=subject_id, deadline_ut=deadline_ut).all()
     tasks_packs = []
     for t in tasks:
         s = Subject.query.filter_by(id = t.subject_id).one()
@@ -359,13 +361,15 @@ def taskRegistNew():
             difficulty = data["difficulty"]
         except:
             return make_response(2)
-        serial = get_int_serial(deadline_year, deadline_month, deadline_day)
-        task_data = [user.id, subject_id, detail, summary, serial, difficulty]
+        deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
+        deadline_datetime = trans_datetime_serial(deadline_serial)
+        deadline_ut = trans_datetime_ut(deadline_datetime)
+        task_data = [user.id, subject_id, detail, summary, deadline_ut, difficulty]
         task_regist_data = [user.id, 1]
         @multiple_control(QueueOption.singleQueue)  # 悲観ロック
         def add_Task_and_Task_regist(task_data_:list, task_regist_data_:list):
             t, r = task_data_, task_regist_data_
-            task = Task(user_num=t[0], subject_id=t[1], detail=t[2], summary=t[3], serial=t[4], difficulty=t[5])
+            task = Task(user_id=t[0], subject_id=t[1], detail=t[2], summary=t[3], deadline_ut=t[4], difficulty=t[5])
             db.session.add(task)
             db.session.commit()
             task_id = db.session.query(func.max(Task.id)).one()[0]  
@@ -384,7 +388,7 @@ def taskGetTasks():
     user = get_user(json_data)
     if user is None: 
         return make_response(4)
-    tasks:list = Task.query.filter_by(user_num=user.id).all()
+    tasks:list = Task.query.filter_by(user_id=user.id).all()
     tasks_list = create_task_entity(tasks)
     data = {
         "tasks" : tasks_list
@@ -403,8 +407,8 @@ def taskDelete():
         task_id = data["task_id"]
     except:
         return make_response(2)
-    task = Task.query.filter_by(id=task_id).first()#TaskテーブルからOldTaskテーブルに移すことで削除とする。
-    old_task = Old_task(task_id = task.id,user_num = task.user_num,subject_id = task.subject_id,detail = task.detail,summary = task.summary,serial = task.serial)
+    task:Task = Task.query.filter_by(id=task_id).first()#TaskテーブルからOldTaskテーブルに移すことで削除とする。
+    old_task = Old_task(task_id = task.id,user_id = task.user_id,subject_id = task.subject_id,detail = task.detail,summary = task.summary,deadline_ut = task.deadline_ut)
     task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=5)#Task_registテーブルにログを残す。
     try:
         session = db.session
@@ -437,11 +441,11 @@ def taskGetTask():
     task_regists = Task_regist.query.filter_by(user_id=user.id).all()
     regist_time = []
     for task_regist in task_regists:
-        regist_time.append(task_regist.regist_time)
+        regist_time.append(task_regist.regist_ut)
     if regist_time != []:
-        recent_regist_time: float = max(regist_time)
-        now_serial = get_float_serial()
-        if now_serial >= recent_regist_time + 3:
+        recent_regist_ut: float = max(regist_time)
+        now_ut = time()
+        if now_ut >= recent_regist_ut + TimeBase.access_maximum_limit:
             __ = {"task_regist":False}
         else:
             __ = {"task_regist":True}
@@ -451,12 +455,9 @@ def taskGetTask():
     #課題表示出来るかの確認ー("display_ok"作成)ーーーーーーーーーーーーーーーー
     display_ok = {}
     display_ok.update(**_, **__)
-    
-    #残りの課題表示出来る時間
-    #hour = int((recent_regist_time + 3 - now_serial)/0.04166667) 
 
     #! 表示期限を示すシリアル値をiso8601に変換
-    iso_visible_limit = serial_to_iso(recent_regist_time + 3,is_basic_format = False)
+    iso_visible_limit = trans_ut_iso(recent_regist_ut + TimeBase.access_maximum_limit,is_basic_format = False)
     
     #課題情報を作成ーーーーーーーーーーーーーーーーーーーーーーーーー
     taken_subject_ids = []
@@ -471,19 +472,20 @@ def taskGetTask():
         kadai = Task.query.filter_by(subject_id = i).all()  
         extend(kadai)
     tasks = []
-    today_serial = get_int_serial()
+    now_ut = time()
     for task in kadais:
-        serial = task.serial
-        if serial >= today_serial:
+        deadline_ut = task.deadline_ut
+        if deadline_ut >= now_ut:
             subject:Subject = Subject.query.filter_by(id=task.subject_id).one()
+            deadline_str = ut_to_str(task.deadline_ut)
             tasks += [
                 {
                     "subject_id":subject.id,
                     "subject_name": subject.subject_name,
                     "task_id": task.id,
-                    "deadline_year":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%Y'),
-                    "deadline_month":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%m'),
-                    "deadline_day":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%d'),
+                    "deadline_year":deadline_str[0:4],
+                    "deadline_month":deadline_str[5:7],
+                    "deadline_day":deadline_str[8:10],
                     "summary": task.summary,
                     "detail": task.detail,
                     "difficulty":task.difficulty
@@ -492,11 +494,11 @@ def taskGetTask():
         
     #all_tasks_idとhard_tasks_idの振り分け
     all_tasks_id, hard_tasks_id = [],[]
-    today_serial = get_int_serial()
+    now_ut = time()
     for kadai in kadais:
-        serial = kadai.serial
-        if serial >= today_serial:#期限が終わっていない
-            if today_serial+3 >= serial:#期限が三日以内である
+        deadline_ut = kadai.deadline_ut
+        if deadline_ut >= now_ut:#期限が終わっていない
+            if now_ut + TimeBase.access_maximum_limit >= deadline_ut:#期限が三日以内である
                 all_tasks_id.append(kadai.id)
                 hard_tasks_id.append(kadai.id)
             else:#期限が三日以内でない
@@ -522,12 +524,12 @@ def getinfo():
         return make_response(4)
     s:Gakka = Gakka.query.filter_by(id = user.department_id).one()
     task_regists = Task_regist.query.filter_by(user_id=user.id).all()
-    regist_time = []
+    regist_ut = []
     for task_regist in task_regists:
-        regist_time.append(task_regist.regist_time)
-    if regist_time != []:
-        recent_regist_time: float = max(regist_time)
-        iso_visible_limit = serial_to_iso(recent_regist_time + 3,is_basic_format = False)
+        regist_ut.append(task_regist.regist_ut)
+    if regist_ut != []:
+        recent_regist_ut: int = max(regist_ut)
+        iso_visible_limit = trans_ut_iso(recent_regist_ut + TimeBase.access_maximum_limit,is_basic_format = False)
     else:
         iso_visible_limit = None
     data = {
