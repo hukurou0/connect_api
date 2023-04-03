@@ -44,7 +44,8 @@ def get_user(json_data):
     user_id:str = json_data["user_id"]
     if user_id == None:
         return None
-    f = Fernet(b'A7gZZ_f1jfMtmPMzgEXYbWEAZEFLrZb6sGGcxmLMqXA=')
+    key = secret.SECRET_KEY.FERNET_KEY
+    f = Fernet(key.encode('utf-8'))
     token = user_id.encode('utf-8')
     id = int(f.decrypt(token).decode('utf-8')) 
     user = User.query.filter_by(id = id).one_or_none()
