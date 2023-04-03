@@ -2,17 +2,14 @@ from time import time
 from flask import current_app
 from flask import request, redirect, url_for, jsonify, session
 from sqlalchemy import exc, func
-import re
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, date, timedelta
-import json
 #from flask_cors import CORS
 from database_defined import app, db
-from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
-                               Task, Old_task, Task_regist, Task_regist_kind)
+from database_defined import (User, Login_limiter, Gakka, Subject, Taken, 
+                               Task, Old_task, Task_regist)
 from typing import Union
 from pack_datetime_unixtime_serial import get_int_serial, serial_to_iso, trans_datetime_serial, trans_datetime_ut, trans_ut_iso, ut_to_str
-from pack_decorater import  QueueOption,  multiple_control, expel_frozen_account, current_user_need_not_login
+from pack_decorater import  QueueOption,  multiple_control, current_user_need_not_login
 from pack_datetime_unixtime_serial import TimeBase
 import traceback
 from psycopg2 import errors as psycopg2_errors
