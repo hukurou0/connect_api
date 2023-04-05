@@ -1,8 +1,11 @@
+from  datetime import datetime
 from time import time
 from flask import current_app
 from flask import request, redirect, url_for, jsonify, session
 from sqlalchemy import exc, func
 from werkzeug.security import generate_password_hash, check_password_hash
+from connect_api.database_defined import User_login
+from connect_api.pack_datetime_unixtime_serial import round_datetime_ut
 #from flask_cors import CORS
 from database_defined import app, db
 from database_defined import (User, Login_limiter, Gakka, Subject, Taken, 
@@ -35,8 +38,7 @@ def after_request(response):
   response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
   return response
 
-
-
+# ログインユーザー取得
 def get_user(json_data):
     user_id:str = json_data["user_id"]
     if user_id == None:
@@ -51,7 +53,8 @@ def get_user(json_data):
     else:
         return None
     return user
-  
+
+# レスポンスの雛形
 def make_response(status_code:int = 1, data:dict ={}):
     response_dic = {} 
     response_dic["status_code"] = status_code
@@ -60,6 +63,7 @@ def make_response(status_code:int = 1, data:dict ={}):
     response.set_cookie('username', "a")
     return response
 
+# ログイン試行回数によるログイン制御
 def is_strict_login_possible(username: str, password: str, is_update_restriction: bool = False) -> bool:
     """
     ログイン機能にアクセス制限を課す関数. 
@@ -78,7 +82,7 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
     """
     user = User.query.filter_by(username=username).one_or_none()
     if(user is None): 
-        return False,None
+        return False, None
     login_limiter = Login_limiter.query.filter_by(user_id=user.id, is_stopped_access=True).all()
     # login_limmiter リストが空でないとき かつ ログイン制限時間中でないとき (短絡評価のため login_limiter リストは空でも良い)
     if(login_limiter and time() < login_limiter[-1].login_ut + TimeBase.stop_duration):
@@ -86,11 +90,24 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
             l = Login_limiter(user_id=user.id, is_stopped_access=True)
             db.session.add(l)
             db.session.commit()
-        return False,None
+        return False, None
     # ログイン未制限中 かつ ログイン成功時
     elif(check_password_hash(user.password, password)):
-        return True,user
+        user_login = User_login.query.filter_by(user_id=user.id, is_successful=1).one_or_none()
+        if(user_login is None):
+            user_login = User_login(user_id=user.id, is_successful=1)
+            db.session.add(user_login)
+            db.session.commit()
+        else:
+            user_login.login_ut = time()
+            user_login.login_datetime=round_datetime_ut(datetime.today())
+        return True, user
     else:
+        add_user_login = lambda: [
+            db.session.add(User_login(user_id=user.id, is_login_sccess=0)),
+            db.session.commit()
+        ]
+        add_user_login()
         login_fails_by_user = Login_limiter.query.filter(Login_limiter.user_id == user.id, \
                                                          TimeBase.focus_lower_limit_ut < Login_limiter.login_ut).all()
         # 罰点(ログイン失敗回数)が規定回数以上になった場合
@@ -100,7 +117,7 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
             l_l = Login_limiter(user_id=user.id) 
         db.session.add(l_l)
         db.session.commit()
-        return False,None
+        return False, None
 
 # サインアップ機能(get), ユーザー情報編集機能(get) --Unit Tested 
 @app.route("/api/getDepartment", methods=["GET"])
@@ -251,11 +268,8 @@ def taken():
     except:
         session.rollback()
         return make_response(3) 
-        
-        
-        
 
-# 課題登録機能_段階1(get) --Unit Tested
+# 課題登録機能_段階1(post1) --Unit Tested
 @app.route("/api/task/regist/getSubjects", methods=["POST"])
 def taskRegistGetSubject():
     json_data = request.get_json()
@@ -272,7 +286,7 @@ def taskRegistGetSubject():
     data = takens
     return make_response(1,data)
 
-# 課題登録機能_段階1(post) --Unit Tested
+# 課題登録機能_段階1(post2) --Unit Tested
 @app.route("/api/task/regist/check", methods=["POST"])
 def taskRegistCheck():
     json_data = request.get_json()
@@ -378,7 +392,7 @@ def taskRegistNew():
     except exc.DataError:  #データ長のはみ出し
         return make_response(3)
 
-# 課題削除機能(get) --Unit Tested
+# 課題削除機能(post1) --Unit Tested
 @app.route("/api/user/getTasks", methods=["POST"])
 def taskGetTasks():
     json_data = request.get_json()
@@ -392,7 +406,7 @@ def taskGetTasks():
     }
     return make_response(1, data)
 
-# 課題削除機能(post) --Unit Tested
+# 課題削除機能(post2) --Unit Tested
 @app.route("/api/user/deleteTask", methods=["POST"])
 def taskDelete():
     json_data = request.get_json()
@@ -420,7 +434,7 @@ def taskDelete():
 
              
     
-# 課題表示機能(get) --Unit Tested
+# 課題表示機能(post) --Unit Tested
 @app.route("/api/task/getTasks", methods=["POST"])
 def taskGetTask():
     json_data = request.get_json()
@@ -539,7 +553,8 @@ def getinfo():
     }
     
     return make_response(1,data)
-    
+
+# ログイン機能(post)
 @app.route("/api/login", methods=["POST"])
 def login():
     if request.method == "POST":
@@ -562,7 +577,8 @@ def login():
             return make_response(1,data)
         else:
             return make_response(101)
-        
+
+# ログイン排除(post)    
 @app.route("/unlogin", methods=["GET"])
 def unlogin():
     return make_response(4)
