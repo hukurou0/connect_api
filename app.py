@@ -43,13 +43,21 @@ def load_user(user_id):
 def unauthorized():
     return redirect('/unlogin')
 
-def generate_star(difficulty: int) -> str:
-    star = ""
-    for _ in range(0,difficulty):
-        star += "★"
-    for _ in range(difficulty,5):
-        star += "☆" 
-    return star    
+def get_user(json_data):
+    user_id:str = json_data["user_id"]
+    if user_id == None:
+        return None
+    key = secret.SECRET_KEY.FERNET_KEY
+    f = Fernet(key.encode('utf-8'))
+    token = user_id.encode('utf-8')
+    id = int(f.decrypt(token).decode('utf-8')) 
+    user = User.query.filter_by(id = id).one_or_none()
+    if user is not None: 
+        if(user.login_possible==0):
+            return None
+    else:
+        return None
+    return user
   
 def make_response(status_code:int = 1, data:dict ={}):
     response_dic = {} 
