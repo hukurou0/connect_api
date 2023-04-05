@@ -4,8 +4,8 @@ from flask import current_app
 from flask import request, redirect, url_for, jsonify, session
 from sqlalchemy import exc, func
 from werkzeug.security import generate_password_hash, check_password_hash
-from connect_api.database_defined import User_login
-from connect_api.pack_datetime_unixtime_serial import round_datetime_ut
+from database_defined import User_login
+from pack_datetime_unixtime_serial import round_datetime_ut
 #from flask_cors import CORS
 from database_defined import app, db
 from database_defined import (User, Login_limiter, Gakka, Subject, Taken, 
