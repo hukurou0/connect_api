@@ -1,4 +1,5 @@
 from time import time
+import uuid
 from flask import current_app
 from flask import request, redirect, url_for, jsonify, session
 from sqlalchemy import exc, func
@@ -567,6 +568,30 @@ def login():
 @app.route("/unlogin", methods=["GET"])
 def unlogin():
     return make_response(4)
+
+@app.route("/api/user/deleteuser", methods=["POST"])
+def deleteUser():
+    dummy = "$DUMMY"
+    # uuid を取得
+    namespace = uuid.NAMESPACE_URL
+    name = 'https://www.examplejageiwiDFEIUF7932NFEIO8.com'  # テキトーな文字列
+    uuid5 = uuid.uuid5(namespace, name)
+    # dummy化関数
+    DUMMYFUNC = lambda user: [
+        setattr(user, "username", fr"{dummy}_USERNAME_{uuid5}"),
+        setattr(user, "password", fr"${dummy}_USERNAME_{uuid5}"),
+        setattr(user, "mail", fr"${dummy}_USERNAME_{uuid5}"),
+        db.session.commit()
+    ]
+    if request.method == "POST":
+        json_data = request.get_json()
+        try:
+            user = get_user(json_data)
+        except:
+            return make_response(2)
+        DUMMYFUNC(user)
+        return make_response()
+
             
 if __name__=='__main__':
     app.run(debug=True, threaded=True)
