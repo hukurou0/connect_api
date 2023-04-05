@@ -512,6 +512,7 @@ def taskGetTask():
     } 
     return make_response(1,data)
 
+# ログインユーザの情報を返す(post)
 @app.route("/api/user/getInfo", methods=["POST"])
 def getinfo():
     json_data = request.get_json()
