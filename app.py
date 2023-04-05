@@ -1,20 +1,19 @@
+from  datetime import datetime
 from time import time
 import uuid
 from flask import current_app
 from flask import request, redirect, url_for, jsonify
 from sqlalchemy import exc, func
-import re
-from flask_login import LoginManager, login_user, logout_user, current_user,login_required
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, date, timedelta
-import json
+from database_defined import User_login
+from pack_datetime_unixtime_serial import round_datetime_ut
 #from flask_cors import CORS
 from database_defined import app, db
-from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
-                               Task, Old_task, Task_regist, Task_regist_kind)
+from database_defined import (User, Login_limiter, Gakka, Subject, Taken, 
+                               Task, Old_task, Task_regist)
 from typing import Union
-from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str, serial_to_iso
-from pack_decorater import  QueueOption,  multiple_control, expel_frozen_account, current_user_need_not_login
+from pack_datetime_unixtime_serial import get_int_serial, serial_to_iso, trans_datetime_serial, trans_datetime_ut, trans_ut_iso, ut_to_str
+from pack_decorater import  QueueOption,  multiple_control, current_user_need_not_login
 from pack_datetime_unixtime_serial import TimeBase
 import traceback
 from psycopg2 import errors as psycopg2_errors
@@ -37,13 +36,6 @@ def after_request(response):
   response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
   return response
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-@login_manager.unauthorized_handler
-def unauthorized():
-    return redirect('/unlogin')
-
 def get_user(json_data):
     user_id:str = json_data["user_id"]
     if user_id == None:
@@ -59,7 +51,8 @@ def get_user(json_data):
     else:
         return None
     return user
-  
+
+# レスポンスの雛形
 def make_response(status_code:int = 1, data:dict ={}):
     response_dic = {} 
     response_dic["status_code"] = status_code
@@ -67,6 +60,7 @@ def make_response(status_code:int = 1, data:dict ={}):
     response = jsonify(response_dic)
     return response
 
+# ログイン試行回数によるログイン制御
 def is_strict_login_possible(username: str, password: str, is_update_restriction: bool = False) -> bool:
     """
     ログイン機能にアクセス制限を課す関数. 
@@ -85,7 +79,7 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
     """
     user = User.query.filter_by(username=username).one_or_none()
     if(user is None): 
-        return False,None
+        return False, None
     login_limiter = Login_limiter.query.filter_by(user_id=user.id, is_stopped_access=True).all()
     # login_limmiter リストが空でないとき かつ ログイン制限時間中でないとき (短絡評価のため login_limiter リストは空でも良い)
     if(login_limiter and time() < login_limiter[-1].login_ut + TimeBase.stop_duration):
@@ -93,11 +87,24 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
             l = Login_limiter(user_id=user.id, is_stopped_access=True)
             db.session.add(l)
             db.session.commit()
-        return False,None
+        return False, None
     # ログイン未制限中 かつ ログイン成功時
     elif(check_password_hash(user.password, password)):
-        return True,user
+        user_login = User_login.query.filter_by(user_id=user.id, is_successful=1).one_or_none()
+        if(user_login is None):
+            user_login = User_login(user_id=user.id, is_successful=1)
+            db.session.add(user_login)
+            db.session.commit()
+        else:
+            user_login.login_ut = time()
+            user_login.login_datetime=round_datetime_ut(datetime.today())
+        return True, user
     else:
+        add_user_login = lambda: [
+            db.session.add(User_login(user_id=user.id, is_login_sccess=0)),
+            db.session.commit()
+        ]
+        add_user_login()
         login_fails_by_user = Login_limiter.query.filter(Login_limiter.user_id == user.id, \
                                                          TimeBase.focus_lower_limit_ut < Login_limiter.login_ut).all()
         # 罰点(ログイン失敗回数)が規定回数以上になった場合
@@ -107,7 +114,7 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
             l_l = Login_limiter(user_id=user.id) 
         db.session.add(l_l)
         db.session.commit()
-        return False,None
+        return False, None
 
 # サインアップ機能(get), ユーザー情報編集機能(get) --Unit Tested 
 @app.route("/api/getDepartment", methods=["GET"])
@@ -230,12 +237,38 @@ def getSubjet():
 
 # 履修登録機能(post) --Unit Tested
 @app.route("/api/taken", methods=["POST"])
-@login_required
-@expel_frozen_account
 def taken():
-    user = current_user
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
+    json_data = request.get_json()
+    try:
+        data = json_data["data"]
+        subject_ids = data["subject_id"]
+    except:
+        return make_response(2)
+    
+    Taken.query.filter_by(user_id=user.id).delete() # レコードが存在しない場合は何も起こらない
+    new_taken_all = []
+    for subject_id in subject_ids:
+        if(subject_id!=0):
+            new_taken = Taken(user_id=user.id, subject_id=subject_id)
+            new_taken_all.append(new_taken)
+    try:
+        session = db.session
+        session.add_all(new_taken_all)
+        session.commit()
+        return make_response()
+    except:
+        session.rollback()
+        return make_response(3) 
+
+# 課題登録機能_段階1(post1) --Unit Tested
+@app.route("/api/task/regist/getSubjects", methods=["POST"])
     if request.method == "POST": 
         json_data = request.get_json()
+        user = get_user(json_data)
         try:
             data = json_data["data"]
             subject_ids = data["subject_id"]
@@ -256,279 +289,255 @@ def taken():
         except:
             session.rollback()
             return make_response(3) 
-        
-        
-        
 
-# 課題登録機能_段階1(get) --Unit Tested
-@app.route("/api/task/regist/getSubjects", methods=["GET"])
-@login_required
-@expel_frozen_account
-def taskRegistGetSubject():
-    user = current_user
-    takens_ =  Taken.query.filter_by(user_id = user.id).all()
-    takens = []
-    for t in takens_:
-        subject = Subject.query.filter_by(id=t.subject_id).one()    
-        takens += [
-            {"name": subject.subject_name, "subject_id": t.subject_id}
-        ]
-    if request.method == "GET":
-        data = takens
-        return make_response(1,data)
-
-# 課題登録機能_段階1(post) --Unit Tested
+# 課題登録機能_段階1(post2) --Unit Tested
 @app.route("/api/task/regist/check", methods=["POST"])
-@login_required
-@expel_frozen_account
 def taskRegistCheck():
-    if request.method == "POST": 
-        #subject_id, deadline_year, deadline_month, deadline_day = 1, 2023, 4, 1
-        json_data = request.get_json()
-        try:
-            data = json_data["data"]
-            subject_id = data["subject_id"]
-            deadline_year = data["deadline_year"]
-            deadline_month = data["deadline_month"]
-            deadline_day = data["deadline_day"]
-        except:
-            return make_response(2)
-        
-        deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
-        tasks = Task.query.filter_by(subject_id=subject_id, serial=deadline_serial).all()
-        tasks_packs = []
-        for t in tasks:
-            s = Subject.query.filter_by(id = t.subject_id).one()
-            tasks_packs += [
-                {
-                "task_id": t.id,
-                "subject_name": s.subject_name,
-                "summary": t.summary,
-                "detail": t.detail,
-                "deadline": f"{deadline_month}/{deadline_day}" 
-                }
-            ]
-        data = {
-            "tasks" : tasks_packs
-        }
-        return make_response(1, data)
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
+    #subject_id, deadline_year, deadline_month, deadline_day = 1, 2023, 4, 1
+    json_data = request.get_json()
+    try:
+        data = json_data["data"]
+        subject_id = data["subject_id"]
+        deadline_year = data["deadline_year"]
+        deadline_month = data["deadline_month"]
+        deadline_day = data["deadline_day"]
+    except:
+        return make_response(2)
+    
+    deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
+    deadline_datetime = trans_datetime_serial(deadline_serial)
+    deadline_ut = trans_datetime_ut(deadline_datetime)
+    tasks = Task.query.filter_by(subject_id=subject_id, deadline_ut=deadline_ut).all()
+    tasks_packs = []
+    for t in tasks:
+        s = Subject.query.filter_by(id = t.subject_id).one()
+        tasks_packs += [
+            {
+            "task_id": t.id,
+            "subject_name": s.subject_name,
+            "summary": t.summary,
+            "detail": t.detail,
+            "deadline": f"{deadline_month}/{deadline_day}" 
+            }
+        ]
+    data = {
+        "tasks" : tasks_packs
+    }
+    return make_response(1, data)
 
 # 課題登録機能_段階2(post1) --Unit Tested
 @app.route("/api/task/regist/duplication", methods=["POST"])
-@login_required
-@expel_frozen_account
 def taskRegistDuplication():
-    user = current_user
-    if request.method == "POST":
-        json_data = request.get_json()
-        try:
-            data = json_data["data"]
-            task_id = data["task_id"]
-        except:
-            return make_response(2)
-        
-        task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=1) 
-        try:
-            session = db.session
-            session.add(task_regist)
-            session.commit()
-            return make_response() #make_response->finaly->returnの順に処理される
-        except:
-            session.rollback()
-            return make_response(3) 
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
+    try:
+        data = json_data["data"]
+        task_id = data["task_id"]
+    except:
+        return make_response(2)
+    
+    task_regist = Task_regist(user_id=user.id, task_id=task_id, kind_id=1) 
+    try:
+        session = db.session
+        session.add(task_regist)
+        session.commit()
+        return make_response() #make_response->finaly->returnの順に処理される
+    except:
+        session.rollback()
+        return make_response(3) 
     
         
         
 
 # 課題登録機能_段階2(post2) --Unit Tested
 @app.route("/api/task/regist/new", methods=["POST"])
-@login_required
-@expel_frozen_account
 def taskRegistNew():
-    user = current_user
-    if request.method == "POST":
-        try:
-            json_data = request.get_json()
-            try:
-                data = json_data["data"]
-                subject_id = data["subject_id"]
-                deadline_year = data["deadline_year"]
-                deadline_month = data["deadline_month"]
-                deadline_day = data["deadline_day"]           
-                summary = data["summary"]
-                detail = data["detail"]
-                difficulty = data["difficulty"]
-            except:
-                return make_response(2)
-            serial = get_int_serial(deadline_year, deadline_month, deadline_day)
-            task_data = [user.id, subject_id, detail, summary, serial, difficulty]
-            task_regist_data = [user.id, 1]
-            @multiple_control(QueueOption.singleQueue)  # 悲観ロック
-            def add_Task_and_Task_regist(task_data_:list, task_regist_data_:list):
-                t, r = task_data_, task_regist_data_
-                task = Task(user_num=t[0], subject_id=t[1], detail=t[2], summary=t[3], serial=t[4], difficulty=t[5])
-                db.session.add(task)
-                db.session.commit()
-                task_id = db.session.query(func.max(Task.id)).one()[0]  
-                task_regist = Task_regist(user_id=r[0], task_id=task_id, kind=r[1])
-                db.session.add(task_regist)
-                db.session.commit()
-            add_Task_and_Task_regist(task_data, task_regist_data)
-            return make_response()
-        except exc.DataError:  #データ長のはみ出し
-            return make_response(3)
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
+    try:
+        data = json_data["data"]
+        subject_id = data["subject_id"]
+        deadline_year = data["deadline_year"]
+        deadline_month = data["deadline_month"]
+        deadline_day = data["deadline_day"]           
+        summary = data["summary"]
+        detail = data["detail"]
+        difficulty = data["difficulty"]
+    except:
+        return make_response(2)
+    deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
+    deadline_datetime = trans_datetime_serial(deadline_serial)
+    deadline_ut = trans_datetime_ut(deadline_datetime)
+    task_data = [user.id, subject_id, detail, summary, deadline_ut, difficulty]
+    task_regist_data = [user.id, 1]
+    @multiple_control(QueueOption.singleQueue)  # 悲観ロック
+    def add_Task_and_Task_regist(task_data_:list, task_regist_data_:list):
+        t, r = task_data_, task_regist_data_
+        task = Task(user_id=t[0], subject_id=t[1], detail=t[2], summary=t[3], deadline_ut=t[4], difficulty=t[5])
+        db.session.add(task)
+        db.session.commit()
+        task_id = db.session.query(func.max(Task.id)).one()[0]  
+        task_regist = Task_regist(user_id=r[0], task_id=task_id, kind_id=r[1])
+        db.session.add(task_regist)
+        db.session.commit()
+    add_Task_and_Task_regist(task_data, task_regist_data)
+    return make_response()
 
-# 課題削除機能(get) --Unit Tested
-@app.route("/api/user/getTasks", methods=["GET"])
-@login_required
-@expel_frozen_account
+# 課題削除機能(post1) --Unit Tested
+@app.route("/api/user/getTasks", methods=["POST"])
 def taskGetTasks():
-    user = current_user
-    if request.method == "GET":
-        tasks:list = Task.query.filter_by(user_num=user.id).all()
-        tasks_list = create_task_entity(tasks)
-        data = {
-            "tasks" : tasks_list
-        }
-        return make_response(1, data)
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
+    tasks:list = Task.query.filter_by(user_id=user.id).all()
+    tasks_list = create_task_entity(tasks)
+    data = {
+        "tasks" : tasks_list
+    }
+    return make_response(1, data)
 
-# 課題削除機能(post) --Unit Tested
+# 課題削除機能(post2) --Unit Tested
 @app.route("/api/user/deleteTask", methods=["POST"])
 @login_required
 @expel_frozen_account
 def taskDelete():
-    user = current_user
-    user = current_user_need_not_login()
-    if request.method == "POST": 
-        json_data = request.get_json()
-        try:
-            data = json_data["data"]
-            task_id = data["task_id"]
-        except:
-            return make_response(2)
-        task = Task.query.filter_by(id=task_id).first()#TaskテーブルからOldTaskテーブルに移すことで削除とする。
-        old_task = Old_task(task_id = task.id,user_num = task.user_num,subject_id = task.subject_id,detail = task.detail,summary = task.summary,serial = task.serial)
-        task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=5)#Task_registテーブルにログを残す。
-        try:
-            session = db.session
-            session.delete(task)
-            session.add(old_task)
-            session.add(task_regist)
-            session.commit()
-            return make_response()
-        except:
-            session.rollback()
-            return make_response(3) 
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
+    try:
+        data = json_data["data"]
+        task_id = data["task_id"]
+    except:
+        return make_response(2)
+    task:Task = Task.query.filter_by(id=task_id).first()#TaskテーブルからOldTaskテーブルに移すことで削除とする。
+    old_task = Old_task(task_id = task.id,user_id = task.user_id,subject_id = task.subject_id,detail = task.detail,summary = task.summary,deadline_ut = task.deadline_ut)
+    task_regist = Task_regist(user_id=user.id, task_id=task_id, kind_id=5)#Task_registテーブルにログを残す。
+    try:
+        session = db.session
+        session.delete(task)
+        session.add(old_task)
+        session.add(task_regist)
+        session.commit()
+        return make_response()
+    except:
+        session.rollback()
+        return make_response(3) 
 
              
     
-# 課題表示機能(get) --Unit Tested
-@app.route("/api/task/getTasks", methods=["GET"])
-@login_required
-@expel_frozen_account
+# 課題表示機能(post) --Unit Tested
+@app.route("/api/task/getTasks", methods=["POST"])
 def taskGetTask():
-    user = current_user
-    if request.method == "GET": 
-        #課題表示出来るかの確認ー(履修登録)ーーーーーーーーーーーーーーーー
-        taken = Taken.query.filter_by(user_id=user.id).all()
-        if taken == []:
-            _ = {"subject_taken":False}
-        else:
-            _ = {"subject_taken":True}
-            
-        #課題表示出来るかの確認ー(課題登録)ーーーーーーーーーーーーーーーー
-        task_regists = Task_regist.query.filter_by(user_id=user.id).all()
-        regist_time = []
-        for task_regist in task_regists:
-            regist_time.append(task_regist.regist_time)
-        if regist_time != []:
-            recent_regist_time: float = max(regist_time)
-            now_serial = get_float_serial()
-            if now_serial >= recent_regist_time + 3:
-                __ = {"task_regist":False}
-            else:
-                __ = {"task_regist":True}
-        else:
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
+    #課題表示出来るかの確認ー(履修登録)ーーーーーーーーーーーーーーーー
+    taken = Taken.query.filter_by(user_id=user.id).all()
+    if taken == []:
+        _ = {"subject_taken":False}
+    else:
+        _ = {"subject_taken":True}
+        
+    #課題表示出来るかの確認ー(課題登録)ーーーーーーーーーーーーーーーー
+    task_regists = Task_regist.query.filter_by(user_id=user.id).all()
+    regist_time = []
+    for task_regist in task_regists:
+        regist_time.append(task_regist.regist_ut)
+    if regist_time != []:
+        recent_regist_ut: float = max(regist_time)
+        now_ut = time()
+        if now_ut >= recent_regist_ut + TimeBase.access_maximum_limit:
             __ = {"task_regist":False}
-            
-        #課題表示出来るかの確認ー("display_ok"作成)ーーーーーーーーーーーーーーーー
-        display_ok = {}
-        display_ok.update(**_, **__)
-        
-        #残りの課題表示出来る時間
-        #hour = int((recent_regist_time + 3 - now_serial)/0.04166667) 
+        else:
+            __ = {"task_regist":True}
+    else:
+        __ = {"task_regist":False}      
+    #課題表示出来るかの確認ー("display_ok"作成)ーーーーーーーーーーーーーーーー
+    display_ok = {}
+    display_ok.update(**_, **__)
 
-        #! 表示期限を示すシリアル値をiso8601に変換
-        iso_visible_limit = serial_to_iso(recent_regist_time + 3,is_basic_format = False)
+    #! 表示期限を示すシリアル値をiso8601に変換
+    iso_visible_limit = trans_ut_iso(recent_regist_ut + TimeBase.access_maximum_limit,is_basic_format = False)
+    
+    #課題情報を作成ーーーーーーーーーーーーーーーーーーーーーーーーー
+    taken_subject_ids = []
+    append = taken_subject_ids.append
+    for i in taken:
+        taken_subject_id = i.subject_id
+        append(taken_subject_id)
+    
+    kadais = []
+    extend = kadais.extend
+    for i in taken_subject_ids:
+        kadai = Task.query.filter_by(subject_id = i).all()  
+        extend(kadai)
+    tasks = []
+    now_ut = time()
+    for task in kadais:
+        deadline_ut = task.deadline_ut
+        if deadline_ut >= now_ut:
+            subject:Subject = Subject.query.filter_by(id=task.subject_id).one()
+            deadline_str = ut_to_str(task.deadline_ut)
+            tasks += [
+                {
+                    "subject_id":subject.id,
+                    "subject_name": subject.subject_name,
+                    "task_id": task.id,
+                    "deadline_year":deadline_str[0:4],
+                    "deadline_month":deadline_str[5:7],
+                    "deadline_day":deadline_str[8:10],
+                    "summary": task.summary,
+                    "detail": task.detail,
+                    "difficulty":task.difficulty
+                }
+            ]  
         
-        #課題情報を作成ーーーーーーーーーーーーーーーーーーーーーーーーー
-        taken_subject_ids = []
-        append = taken_subject_ids.append
-        for i in taken:
-            taken_subject_id = i.subject_id
-            append(taken_subject_id)
-        
-        kadais = []
-        extend = kadais.extend
-        for i in taken_subject_ids:
-            kadai = Task.query.filter_by(subject_id = i).all()  
-            extend(kadai)
-        tasks = []
-        today_serial = get_int_serial()
-        for task in kadais:
-            serial = task.serial
-            if serial >= today_serial:
-                subject:Subject = Subject.query.filter_by(id=task.subject_id).one()
-                tasks += [
-                    {
-                        "subject_id":subject.id,
-                        "subject_name": subject.subject_name,
-                        "task_id": task.id,
-                        "deadline_year":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%Y'),
-                        "deadline_month":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%m'),
-                        "deadline_day":(datetime(1899,12,30) + timedelta(task.serial)).strftime('%d'),
-                        "summary": task.summary,
-                        "detail": task.detail,
-                        "difficulty":task.difficulty
-                    }
-                ]  
-         
-        #all_tasks_idとhard_tasks_idの振り分け
-        all_tasks_id, hard_tasks_id = [],[]
-        today_serial = get_int_serial()
-        for kadai in kadais:
-            serial = kadai.serial
-            if serial >= today_serial:#期限が終わっていない
-                if today_serial+3 >= serial:#期限が三日以内である
-                    all_tasks_id.append(kadai.id)
+    #all_tasks_idとhard_tasks_idの振り分け
+    all_tasks_id, hard_tasks_id = [],[]
+    now_ut = time()
+    for kadai in kadais:
+        deadline_ut = kadai.deadline_ut
+        if deadline_ut >= now_ut:#期限が終わっていない
+            if now_ut + TimeBase.access_maximum_limit >= deadline_ut:#期限が三日以内である
+                all_tasks_id.append(kadai.id)
+                hard_tasks_id.append(kadai.id)
+            else:#期限が三日以内でない
+                all_tasks_id.append(kadai.id)
+                if kadai.difficulty == 5:#期限は三日以内でないが大変さが5である
                     hard_tasks_id.append(kadai.id)
-                else:#期限が三日以内でない
-                    all_tasks_id.append(kadai.id)
-                    if kadai.difficulty == 5:#期限は三日以内でないが大変さが5である
-                        hard_tasks_id.append(kadai.id)
-                        
-        data = {
-            "display_ok":display_ok,
-            "visible_limit":iso_visible_limit,
-            "all_tasks_id": all_tasks_id,
-            "hard_tasks_id": hard_tasks_id,
-            "tasks": tasks
-        } 
-        return make_response(1,data)
 
-@app.route("/api/user/getInfo", methods=["GET"])
-@login_required
-@expel_frozen_account
+    data = {
+        "display_ok":display_ok,
+        "visible_limit":iso_visible_limit,
+        "all_tasks_id": all_tasks_id,
+        "hard_tasks_id": hard_tasks_id,
+        "tasks": tasks
+    } 
+    return make_response(1,data)
+
+# ログインユーザの情報を返す(post)
+@app.route("/api/user/getInfo", methods=["POST"])
 def getinfo():
     user = current_user
     s:Gakka = Gakka.query.filter_by(id = user.department_id).one()
     task_regists = Task_regist.query.filter_by(user_id=user.id).all()
-    regist_time = []
+    regist_ut = []
     for task_regist in task_regists:
-        regist_time.append(task_regist.regist_time)
-    if regist_time != []:
-        recent_regist_time: float = max(regist_time)
-        iso_visible_limit = serial_to_iso(recent_regist_time + 3,is_basic_format = False)
+        regist_ut.append(task_regist.regist_ut)
+    if regist_ut != []:
+        recent_regist_ut: int = max(regist_ut)
+        iso_visible_limit = trans_ut_iso(recent_regist_ut + TimeBase.access_maximum_limit,is_basic_format = False)
     else:
         iso_visible_limit = None
     data = {
@@ -540,15 +549,7 @@ def getinfo():
     }
     return make_response(1,data)
 
-#! ログアウト機能(get)
-@app.route("/api/logout", methods=["GET"])
-@login_required
-@expel_frozen_account
-def logout():
-    if request.method == "GET":
-        logout_user()  # セッション情報の削除  #? 変更となる可能性あり
-        return make_response()
-    
+# ログイン機能(post)
 @app.route("/api/login", methods=["POST"])
 def login():
     if request.method == "POST":
@@ -565,7 +566,8 @@ def login():
             return make_response()
         else:
             return make_response(101)
-        
+
+# ログイン排除(post)    
 @app.route("/unlogin", methods=["GET"])
 def unlogin():
     return make_response(4)
