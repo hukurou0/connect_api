@@ -18,16 +18,14 @@ from pack_datetime_unixtime_serial import TimeBase
 import traceback
 from psycopg2 import errors as psycopg2_errors
 from pack_func import create_task_entity,create_task_entity_in_apitaskgetTasks
+import secret
+from cryptography.fernet import Fernet
 
 #必要な準備
 ctx = app.app_context()
 ctx.push()
 app = current_app
 #CORS(app)
-
-#ログイン機能に必要な準備
-login_manager = LoginManager()
-login_manager.init_app(app)
 
 @app.after_request
 def after_request(response):
@@ -170,70 +168,68 @@ def signup():
 
 # 所属学科変更機能(post) --Unit Tested
 @app.route("/api/user/modifyDepartment", methods=["POST"])
-@login_required
-@expel_frozen_account
 def modify_user():
-    user = current_user
-    if request.method == "POST": 
-        json_data = request.get_json()
-        try:
-            data = json_data["data"]
-            department_id = data["department_id"]
-        except:
-            return make_response(2)
-        
-        try:
-            session = db.session
-            user.department_id = department_id
-            session.commit()
-        except:
-            session.rollback()
-            return make_response(3) 
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
+    try:
+        data = json_data["data"]
+        department_id = data["department_id"]
+    except:
+        return make_response(2)
     
-        
-        return make_response()       
+    try:
+        session = db.session
+        user.department_id = department_id
+        session.commit()
+    except:
+        session.rollback()
+        return make_response(3) 
+
+    return make_response()       
 
 # 履修登録機能(get) --Unit Tested
-@app.route("/api/taken/getSubjects", methods=["GET"])
-#@login_required
-@expel_frozen_account
+@app.route("/api/taken/getSubjects", methods=["POST"])
 def getSubjet():
-    user = current_user
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
     days = ['mon','tue','wed','thu','fri']
     periods = ['1','2','3','4','5']
     # taken_subject の id 検索のために定義. 履修科目IDを要素として持つ配列.
     now_taken_subject_ids = [t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
-    if request.method == "GET": 
-        data = {}
-        all_subjects = Subject.query.filter_by(department_id = user.department_id)
-        def subject_filter(all_subjects,period,day):
-            subjects = []
-            for subject in all_subjects:
-                if subject.period == period:
-                    if subject.day == day:
-                        subjects.append(subject)
-            return subjects
-        for period in periods:
-            for day in days:
-                  # その曜日時限の科目一覧
-                subjects = subject_filter(all_subjects,period,day)
-                taken_id_set = {s.id for s in subjects} & set(now_taken_subject_ids)
-                taken_id = 0 if(len(taken_id_set) == 0) else  taken_id_set.pop() # その曜日時限の履修科目ID
-                classes = [{
-                    "id": 0,
-                    "name": "空きコマ"
-                }]
-                classes += [
-                    {
-                        "id": s.id,
-                        "name": s.subject_name
-                    }
-                for s in subjects] 
-                data[f"{day}{period}"] = {
-                    "classes": classes,
-                    "taken_id": taken_id
+    data = {}
+    all_subjects = Subject.query.filter_by(department_id = user.department_id)#queryの回数を減らすためにfor文の外で一度だけ実行
+    def subject_filter(all_subjects,period,day):#dayとperiodが一致するものをfilter
+        subjects = []
+        for subject in all_subjects:
+            if subject.period == period:
+                if subject.day == day:
+                    subjects.append(subject)
+        return subjects
+    for period in periods:
+        for day in days:
+                # その曜日時限の科目一覧
+            subjects = subject_filter(all_subjects,period,day)#データベースから取得したすべての科目からdayとperiodが一致するものを取得
+            taken_id_set = {s.id for s in subjects} & set(now_taken_subject_ids)
+            taken_id = 0 if(len(taken_id_set) == 0) else  taken_id_set.pop() # その曜日時限の履修科目ID
+            classes = [{
+                "id": 0,
+                "name": "空きコマ"
+            }]
+            classes += [
+                {
+                    "id": s.id,
+                    "name": s.subject_name
                 }
-        return make_response(1, data)
+            for s in subjects] 
+            data[f"{day}{period}"] = {
+                "classes": classes,
+                "taken_id": taken_id
+            }
+    return make_response(1, data)
 
 # 履修登録機能(post) --Unit Tested
 @app.route("/api/taken", methods=["POST"])
@@ -266,29 +262,20 @@ def taken():
 
 # 課題登録機能_段階1(post1) --Unit Tested
 @app.route("/api/task/regist/getSubjects", methods=["POST"])
-    if request.method == "POST": 
-        json_data = request.get_json()
-        user = get_user(json_data)
-        try:
-            data = json_data["data"]
-            subject_ids = data["subject_id"]
-        except:
-            return make_response(2)
-        
-        Taken.query.filter_by(user_id=user.id).delete() # レコードが存在しない場合は何も起こらない
-        new_taken_all = []
-        for subject_id in subject_ids:
-            if(subject_id!=0):
-                new_taken = Taken(user_id=user.id, subject_id=subject_id)
-                new_taken_all.append(new_taken)
-        try:
-            session = db.session
-            session.add_all(new_taken_all)
-            session.commit()
-            return make_response()
-        except:
-            session.rollback()
-            return make_response(3) 
+def taskRegistGetSubject():
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
+    takens_ =  Taken.query.filter_by(user_id = user.id).all()
+    takens = []
+    for t in takens_:
+        subject = Subject.query.filter_by(id=t.subject_id).one()    
+        takens += [
+            {"name": subject.subject_name, "subject_id": t.subject_id}
+        ]
+    data = takens
+    return make_response(1,data)
 
 # 課題登録機能_段階1(post2) --Unit Tested
 @app.route("/api/task/regist/check", methods=["POST"])
@@ -407,8 +394,6 @@ def taskGetTasks():
 
 # 課題削除機能(post2) --Unit Tested
 @app.route("/api/user/deleteTask", methods=["POST"])
-@login_required
-@expel_frozen_account
 def taskDelete():
     json_data = request.get_json()
     user = get_user(json_data)
@@ -462,7 +447,8 @@ def taskGetTask():
         else:
             __ = {"task_regist":True}
     else:
-        __ = {"task_regist":False}      
+        __ = {"task_regist":False}   
+           
     #課題表示出来るかの確認ー("display_ok"作成)ーーーーーーーーーーーーーーーー
     display_ok = {}
     display_ok.update(**_, **__)
@@ -529,7 +515,10 @@ def taskGetTask():
 # ログインユーザの情報を返す(post)
 @app.route("/api/user/getInfo", methods=["POST"])
 def getinfo():
-    user = current_user
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
     s:Gakka = Gakka.query.filter_by(id = user.department_id).one()
     task_regists = Task_regist.query.filter_by(user_id=user.id).all()
     regist_ut = []
@@ -562,8 +551,14 @@ def login():
             return make_response(2)
         can_login,user = is_strict_login_possible(username,password)
         if can_login:
-            login_user(user) 
-            return make_response()
+            id = user.id
+            key = secret.SECRET_KEY.FERNET_KEY
+            f = Fernet(key.encode('utf-8'))
+            token = f.encrypt(f"{id}".encode('utf-8'))
+            data = {
+                "user_id":token.decode('utf-8')
+            }       
+            return make_response(1,data)
         else:
             return make_response(101)
 
@@ -582,8 +577,8 @@ def deleteUser():
     # dummy化関数
     DUMMYFUNC = lambda user: [
         setattr(user, "username", fr"{dummy}_USERNAME_{uuid5}"),
-        setattr(user, "password", fr"${dummy}_USERNAME_{uuid5}"),
-        setattr(user, "mail", fr"${dummy}_USERNAME_{uuid5}"),
+        setattr(user, "password", fr"{dummy}_PASSWORD_{uuid5}"),
+        setattr(user, "mail", fr"{dummy}_MAIL_{uuid5}"),
         setattr(user, "login_possible", 0),
         db.session.commit()
     ]
