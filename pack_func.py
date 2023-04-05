@@ -1,9 +1,9 @@
 from flask import current_app
 from database_defined import app, db
-from database_defined import (User, Admin, User_login, Login_limiter, OTP_table, Gakka, Subject, Taken, 
+from database_defined import (User, Admin, User_login, Login_limiter, Gakka, Subject, Taken, 
                                Task, Old_task, Task_regist, Task_regist_kind)
 from datetime import datetime, date, timedelta
-from pack_datetime_unixtime_serial import get_float_serial, get_int_serial, serial_to_str
+from pack_datetime_unixtime_serial import get_int_serial, serial_to_str
 
 ctx = app.app_context()
 ctx.push()

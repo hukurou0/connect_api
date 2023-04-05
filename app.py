@@ -325,7 +325,7 @@ def taskRegistDuplication():
     except:
         return make_response(2)
     
-    task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=1) 
+    task_regist = Task_regist(user_id=user.id, task_id=task_id, kind_id=1) 
     try:
         session = db.session
         session.add(task_regist)
@@ -370,7 +370,7 @@ def taskRegistNew():
             db.session.add(task)
             db.session.commit()
             task_id = db.session.query(func.max(Task.id)).one()[0]  
-            task_regist = Task_regist(user_id=r[0], task_id=task_id, kind=r[1])
+            task_regist = Task_regist(user_id=r[0], task_id=task_id, kind_id=r[1])
             db.session.add(task_regist)
             db.session.commit()
         add_Task_and_Task_regist(task_data, task_regist_data)
@@ -406,7 +406,7 @@ def taskDelete():
         return make_response(2)
     task:Task = Task.query.filter_by(id=task_id).first()#TaskテーブルからOldTaskテーブルに移すことで削除とする。
     old_task = Old_task(task_id = task.id,user_id = task.user_id,subject_id = task.subject_id,detail = task.detail,summary = task.summary,deadline_ut = task.deadline_ut)
-    task_regist = Task_regist(user_id=user.id, task_id=task_id, kind=5)#Task_registテーブルにログを残す。
+    task_regist = Task_regist(user_id=user.id, task_id=task_id, kind_id=5)#Task_registテーブルにログを残す。
     try:
         session = db.session
         session.delete(task)
