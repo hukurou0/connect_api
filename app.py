@@ -581,6 +581,7 @@ def deleteUser():
         setattr(user, "username", fr"{dummy}_USERNAME_{uuid5}"),
         setattr(user, "password", fr"${dummy}_USERNAME_{uuid5}"),
         setattr(user, "mail", fr"${dummy}_USERNAME_{uuid5}"),
+        setattr(user, "login_possible", 0),
         db.session.commit()
     ]
     if request.method == "POST":
