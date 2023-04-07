@@ -96,10 +96,11 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
         else:
             user_login.login_ut = time()
             user_login.login_datetime=round_datetime_ut(datetime.today())
+            db.session.commit()
         return True, user
     else:
         add_user_login = lambda: [
-            db.session.add(User_login(user_id=user.id, is_login_sccess=0)),
+            db.session.add(User_login(user_id=user.id, is_successful=0)),
             db.session.commit()
         ]
         add_user_login()
@@ -125,7 +126,6 @@ def getDepartment():
             dic["id"] = gakka.id
             dic["name"] = gakka.gakka
             data.append(dic)
-        print(data)
         return make_response(1,data)
 
 # サインアップ機能(post) --Unit Tested    
@@ -144,7 +144,7 @@ def signup():
         def create_user():
             try:
                 user = User( username=username, password=generate_password_hash(password, method="sha256"), \
-                        department_id = department_id,mail="abbb")
+                        department_id = department_id)
                 session.add(user)
                 session.commit()
 
@@ -201,11 +201,11 @@ def getSubjet():
     # taken_subject の id 検索のために定義. 履修科目IDを要素として持つ配列.
     now_taken_subject_ids = [t.subject_id for t in Taken.query.filter_by(user_id = user.id).all()]
     data = {}
-    all_subjects = Subject.query.filter_by(department_id = user.department_id)#queryの回数を減らすためにfor文の外で一度だけ実行
+    all_subjects = Subject.query.filter_by(department_id = user.department_id).all()#queryの回数を減らすためにfor文の外で一度だけ実行
     def subject_filter(all_subjects,period,day):#dayとperiodが一致するものをfilter
         subjects = []
         for subject in all_subjects:
-            if subject.period == period:
+            if subject.period == int(period):
                 if subject.day == day:
                     subjects.append(subject)
         return subjects
@@ -441,20 +441,22 @@ def taskGetTask():
         regist_time.append(task_regist.regist_ut)
     if regist_time != []:
         recent_regist_ut: float = max(regist_time)
+        #! 表示期限を示すシリアル値をiso8601に変換
+        iso_visible_limit = trans_ut_iso(recent_regist_ut + TimeBase.access_maximum_limit,is_basic_format = False)
         now_ut = time()
         if now_ut >= recent_regist_ut + TimeBase.access_maximum_limit:
             __ = {"task_regist":False}
         else:
             __ = {"task_regist":True}
     else:
+        iso_visible_limit = None
         __ = {"task_regist":False}   
            
     #課題表示出来るかの確認ー("display_ok"作成)ーーーーーーーーーーーーーーーー
     display_ok = {}
     display_ok.update(**_, **__)
 
-    #! 表示期限を示すシリアル値をiso8601に変換
-    iso_visible_limit = trans_ut_iso(recent_regist_ut + TimeBase.access_maximum_limit,is_basic_format = False)
+    
     
     #課題情報を作成ーーーーーーーーーーーーーーーーーーーーーーーーー
     taken_subject_ids = []
