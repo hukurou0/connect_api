@@ -1,22 +1,24 @@
 from time import time
 from datetime import datetime, date, timedelta
-from typing import Union
+from typing import Final, Union
+import pytz
+jst_tz: Final = pytz.timezone('Asia/Tokyo')
 
 
 #* 時間制御にまつわる変数[s]
 class TimeBase():
     # User 関連
-    visible_length = 3 * 60 * 60 * 24  # 課題表示の有効日数[日]
+    visible_length = 3  # 課題表示の有効日数[日]
     focus_lower_limit_ut = time() - 60  # ログイン試行回数に着目する時間幅の下限[ut] 
     access_maximum_limit = 10  # 上記時間に対して許容するログイン失敗回数[回]
     stop_duration = 120  # 許容できないログイン失敗回数に到達したときのアクセス不能時間幅[s]
     # Admin 関連
-    totp_valid_length = 75  # TOTP発行から入力までの許容時間[s]
+    totp_valid_length = 5*60  # TOTP発行から入力までの許容時間[s]
     now_minus_login_valid_ut = time() - 1800  # 最終操作時のセッションタイムアウトしない時間の下限[ut]  # 恐らく必要のない機能(但し消去不可).
     lastlogin_ut_default = time() - 3600  # 最終操作時間のデフォルト値(Insert時に使用)[ut]. now_minus_lgoin_valid_ut より小さければ良い.
     # 自動化関数 関連
-    daily = 24*60*60  # unused
-    monthly = 30*24*60*60  # unused
+    daily = 24*60*60  # 1日[s]
+    monthly = 30*24*60*60  # 30日[s]
 
 
 #*------------------------------- 変換に必要な機能 -------------------------------------------------*#
@@ -29,14 +31,15 @@ def round_datetime_ut(t : Union[float, datetime]) -> Union[int, datetime]:
         t = round(t)
     return t
 
-# iso8601 から 年, 月, 日, 時, 分, 秒, TZ時, TZ分 を抽出
+# iso8601 から 年, 月, 日, 時, 分, 秒を抽出
 def extract_elem_from_iso(iso: str) -> dict[int]:
     iso = iso.replace("/", "")  # 文字列時間にも対応できるように 
     iso = iso.replace(" ", "")  # 同上
-    iso += "0000000000000000"   # 同上 (不足文字数(TZ用)の補完 及び 日未満を切り捨てる場合用)
-    iso = iso.replace("-", "")
+    iso = iso.replace("-", "")  # ∴ TZ は、参照不可。
+    iso = iso.replace("+", "")  # ∴ TZ は、参照不可。
     iso = iso.replace(":", "")
     iso = iso.replace("T", "")
+    iso += "0000000000"         # 文字列時間などにも対応するよう 0 埋め
     dt_elem = {
         "year": int(iso[:4]),
         "month": int(iso[4:6]),
@@ -44,8 +47,6 @@ def extract_elem_from_iso(iso: str) -> dict[int]:
         "hour": int(iso[8:10]),
         "minute": int(iso[10:12]),
         "second": int(iso[12:14]),
-        "tz_hour": int(iso[14:17]),
-        "tz_minute": int(iso[17:19])
     }
     return dt_elem
 
@@ -59,19 +60,20 @@ def trans_datetime_ut(t : Union[datetime, int]) -> Union[datetime, int]:
         t = datetime.timestamp(t)
         t = round(t) #変換後に生じる端数切捨て
     elif(isinstance(t, int)):
-        t = datetime.fromtimestamp(t)
+        t = datetime.fromtimestamp(t, jst_tz)
     return t
 
 # datetime <-> iso8601
 def trans_datetime_iso(t: Union[datetime, str], is_basic_format: bool = True):
     """ The 2nd arg is used in only datetime -> iso """
+    global jst_tz
     if(isinstance(t, datetime)):
         t = round_datetime_ut(t)
-        #! フロントの要望より、拡張形式において「+09:00」ではなく「+0900」とする
-        t = t.strftime('%Y%m%dT%H%M%S+0900') if(is_basic_format) else t.strftime('%Y-%m-%dT%H:%M:%S+0900')
+        t = t.strftime('%Y%m%dT%H%M%S%z') if(is_basic_format) else t.strftime('%Y-%m-%dT%H:%M:%S%z')
     elif(isinstance(t, str)):
         t = extract_elem_from_iso(t)
         t = datetime(t["year"], t["month"], t["day"], t["hour"], t["minute"], t["second"])
+        t = t.astimezone(jst_tz)
     return t
 
 # datetime <-> "YYYY/MM/DD hh:mm:ss" or "YYYY/MM/DD"
@@ -83,6 +85,7 @@ def trans_datetime_str(t: Union[datetime, str], is_round_down_below_date: bool =
     elif(isinstance(t, str)):
         t = extract_elem_from_iso(t)
         t = datetime(t["year"], t["month"], t["day"], t["hour"], t["minute"], t["second"])
+        t = t.astimezone(jst_tz)
     return t
 
 # datetime <-> serial
@@ -90,10 +93,11 @@ def trans_datetime_serial(t: Union[datetime, int, float]) -> Union[int, float]:
     """ You round down to the nearest a day. """
     if(isinstance(t, datetime)):
         t = round_datetime_ut(t)
-        t = get_int_serial(t.year, t.month, t.day)
+        t = get_int_serial(t)
     elif(isinstance(t, int) or isinstance(t, float)):
         t = datetime(1899,12,30) + timedelta(t)
         t = round_datetime_ut(t)
+        t = t.astimezone(jst_tz)
     return t
 
 
@@ -132,19 +136,36 @@ def serial_to_str(serial: Union[int, float]) -> str:
 
 #*---------------------------------- (現時刻)状態取得関数 -------------------------------------------------*#
 
-# 現時刻の iso8601 を取得
-def get_iso(dt: datetime = datetime.today(), is_basic_format: bool = True):
+# 現時刻(特定時刻)の DateTime(JST) を取得
+def get_jst_datetime() -> datetime:
+    global jst_tz
+    utc_dt = datetime.now(pytz.utc)
+    jst_dt = utc_dt.astimezone(jst_tz)
+    jst_dt = round_datetime_ut(jst_dt)
+    return jst_dt
+
+# 現時刻(特定時刻)の UnixTime を取得
+def get_ut(dt: datetime = get_jst_datetime()) -> int:
+    dt = get_jst_datetime()
+    ut = trans_datetime_ut(dt)
+    return ut
+
+# 現時刻(特定時刻)の iso8601 を取得
+def get_iso(dt: datetime = get_jst_datetime(), is_basic_format: bool = True):
+    dt = get_jst_datetime()
     iso = trans_datetime_iso(dt, is_basic_format)
     return iso
 
-# 現時刻の YY/MM/DD hh:mm:ss を取得
-def get_str_dt(dt: datetime = datetime.today(), is_round_down_below_date: bool = False):
+# 現時刻(特定時刻)の YY/MM/DD hh:mm:ss を取得
+def get_str_dt(dt: datetime = get_jst_datetime(), is_round_down_below_date: bool = False):
+    dt = get_jst_datetime()
     str_dt = trans_datetime_str(dt, is_round_down_below_date)
     return str_dt
 
 # 整数型シリアル値を取得
-def get_int_serial(today_year = date.today().year,today_month = date.today().month,today_day = date.today().day):
-    today_year_date =  str(today_year) + '/' + str(today_month) + "/" + str(today_day)
+def get_int_serial(dt: datetime = get_jst_datetime()):
+    dt = get_jst_datetime()
+    today_year_date =  str(dt.today().year) + '/' + str(dt.today().month) + "/" + str(dt.today().day)
     dt = datetime.strptime(today_year_date, '%Y/%m/%d') - datetime(1899, 12, 31)
     serial = dt.days + 1
     return serial
@@ -154,18 +175,15 @@ def get_int_serial(today_year = date.today().year,today_month = date.today().mon
 if(__name__=="__main__"):
     #! シリアル値は分単位以下の信頼性は無い。
     print()
-    print(f'DateTime 秒未満切り捨て          | {round_datetime_ut(datetime.today())}')
+    print(f'DateTime 秒未満切り捨て          | {round_datetime_ut(get_jst_datetime())}')
     print(f'UnixTime 秒未満切り捨て          | {round_datetime_ut(time())}')
-    print(f'Datetime <-> UnixTime            | {trans_datetime_ut(time())} | {trans_datetime_ut(datetime.today())}')
-    print(f'DateTime <-> ISO8601(基本形式)   | {trans_datetime_iso(get_iso())} | {trans_datetime_iso(datetime.today(), True)}')
-    print(f'DateTime <-> ISO8601(拡張形式)   | {trans_datetime_iso(get_iso())} | {trans_datetime_iso(datetime.today(), False)}')
-    print(f'DateTime <-> YYYY/MM/DD hh:mm:ss | {trans_datetime_str(get_str_dt())} | {trans_datetime_str(datetime.today())}')
-    print(f'DateTime <-> YYYY/MM/DD          | {trans_datetime_iso(get_str_dt(is_round_down_below_date=True))} | {trans_datetime_str(datetime.today(), True)}')
-    print(f'DateTime <-> SerialValue         | {trans_datetime_serial(get_int_serial())} | {trans_datetime_serial(datetime.today())}')
+    print(f'Datetime <-> UnixTime            | {trans_datetime_ut(time())} | {trans_datetime_ut(get_jst_datetime())}')
+    print(f'DateTime <-> ISO8601(基本形式)   | {trans_datetime_iso(get_iso())} | {trans_datetime_iso(get_jst_datetime(), True)}')
+    print(f'DateTime <-> ISO8601(拡張形式)   | {trans_datetime_iso(get_iso())} | {trans_datetime_iso(get_jst_datetime(), False)}')
+    print(f'DateTime <-> YYYY/MM/DD hh:mm:ss | {trans_datetime_str(get_str_dt())} | {trans_datetime_str(get_jst_datetime())}')
+    print(f'DateTime <-> YYYY/MM/DD          | {trans_datetime_iso(get_str_dt(is_round_down_below_date=True))} | {trans_datetime_str(get_jst_datetime(), True)}')
+    print(f'DateTime <-> SerialValue         | {trans_datetime_serial(get_int_serial())} | {trans_datetime_serial(get_jst_datetime())}')
     print(f'UnixTime <-> ISO8601(基本形式)   | {trans_ut_iso(get_iso())}          | {trans_ut_iso(time(), True)}')
     print(f'SerialValue -> ISO8601(基本形式) | {serial_to_iso(get_int_serial(), True)}')
     print(f'SerialValue -> YYYY/MM/DD        | {serial_to_str(get_int_serial())}')
     print()
-    
-
-    
