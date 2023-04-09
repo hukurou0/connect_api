@@ -12,7 +12,9 @@ from database_defined import app, db
 from database_defined import (User, Login_limiter, Gakka, Subject, Taken, 
                                Task, Old_task, Task_regist)
 from typing import Union
-from pack_datetime_unixtime_serial import get_int_serial, serial_to_iso, trans_datetime_serial, trans_datetime_ut, trans_ut_iso, ut_to_str
+from pack_datetime_unixtime_serial import (get_int_serial, serial_to_iso, 
+                                           trans_datetime_serial, trans_datetime_ut, 
+                                           trans_ut_iso, ut_to_str, get_jst_datetime)
 from pack_decorater import  QueueOption,  multiple_control, current_user_need_not_login
 from pack_datetime_unixtime_serial import TimeBase
 import traceback
@@ -95,7 +97,7 @@ def is_strict_login_possible(username: str, password: str, is_update_restriction
             db.session.commit()
         else:
             user_login.login_ut = time()
-            user_login.login_datetime=round_datetime_ut(datetime.today())
+            user_login.login_datetime=round_datetime_ut(get_jst_datetime())
             db.session.commit()
         return True, user
     else:
