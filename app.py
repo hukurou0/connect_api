@@ -22,6 +22,7 @@ from psycopg2 import errors as psycopg2_errors
 from pack_func import create_task_entity,create_task_entity_in_apitaskgetTasks
 import secret
 from cryptography.fernet import Fernet
+import pytz
 
 #必要な準備
 ctx = app.app_context()
@@ -541,6 +542,57 @@ def getinfo():
         "iso_visible_limit":iso_visible_limit
     }
     return make_response(1,data)
+
+# ログインユーザのその日の時間割を返す(post)
+@app.route("/api/user/getTimeTable", methods=["POST"])
+def getTimeTable():
+    json_data = request.get_json()
+    user = get_user(json_data)
+    if user is None: 
+        return make_response(4)
+    day = ["mon", "tue", "wed", "thu", "fri", None, None]
+    tz = pytz.timezone('Asia/Tokyo')
+    now = datetime.now(tz)
+    day = day[now.weekday()]
+    if day != None:
+        takens = Taken.query.filter_by(user_id=user.id).all()
+        today_takens = []
+        subjects = []
+        for taken in takens:
+            subject = Subject.query.filter_by(id = taken.subject_id).first()
+            if subject.day == day:
+                dic = {
+                    "name":subject.subject_name,
+                    "room":subject.room
+                }
+                today_takens.append(dic)
+                subjects.append(subject)
+        timetable = []
+        for i in range(1,6):
+            flag = False
+            for j in range(len(subjects)):
+                if subjects[j].period == i:
+                    timetable.append(today_takens[j])
+                    flag = True
+                    break
+            if flag == False:
+                timetable.append(
+                    {
+                        "name":None,
+                        "room":None
+                    }
+                )     
+            
+    else:
+        timetable = []
+        for i in range(0,5):
+            timetable.append(
+                    {
+                        "name":None,
+                        "room":None
+                    }
+                )  
+    return make_response(1,timetable)
 
 # ログイン機能(post)
 @app.route("/api/login", methods=["POST"])
