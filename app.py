@@ -443,9 +443,9 @@ def taskGetTask():
     if regist_time != []:
         recent_regist_ut: float = max(regist_time)
         #! 表示期限を示すシリアル値をiso8601に変換
-        iso_visible_limit = trans_ut_iso(recent_regist_ut + TimeBase.access_maximum_limit,is_basic_format = False)
+        iso_visible_limit = trans_ut_iso(recent_regist_ut + TimeBase.visible_length,is_basic_format = False)
         now_ut = time()
-        if now_ut >= recent_regist_ut + TimeBase.access_maximum_limit:
+        if now_ut >= recent_regist_ut + TimeBase.visible_length:
             __ = {"task_regist":False}
         else:
             __ = {"task_regist":True}
@@ -498,7 +498,7 @@ def taskGetTask():
     for kadai in kadais:
         deadline_ut = kadai.deadline_ut
         if deadline_ut >= now_ut:#期限が終わっていない
-            if now_ut + TimeBase.access_maximum_limit >= deadline_ut:#期限が三日以内である
+            if now_ut + TimeBase.visible_length >= deadline_ut:#期限が三日以内である
                 all_tasks_id.append(kadai.id)
                 hard_tasks_id.append(kadai.id)
             else:#期限が三日以内でない
@@ -529,7 +529,7 @@ def getinfo():
         regist_ut.append(task_regist.regist_ut)
     if regist_ut != []:
         recent_regist_ut: int = max(regist_ut)
-        iso_visible_limit = trans_ut_iso(recent_regist_ut + TimeBase.access_maximum_limit,is_basic_format = False)
+        iso_visible_limit = trans_ut_iso(recent_regist_ut + TimeBase.visible_length,is_basic_format = False)
     else:
         iso_visible_limit = None
     data = {
