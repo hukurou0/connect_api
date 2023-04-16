@@ -12,7 +12,7 @@ from database_defined import app, db
 from database_defined import (User, Login_limiter, Gakka, Subject, Taken, 
                                Task, Old_task, Task_regist)
 from typing import Union
-from pack_datetime_unixtime_serial import (get_int_serial, serial_to_iso, 
+from pack_datetime_unixtime_serial import ( jst_tz, get_int_serial, 
                                            trans_datetime_serial, trans_datetime_ut, 
                                            trans_ut_iso, ut_to_str, get_jst_datetime)
 from pack_decorater import  QueueOption,  multiple_control, current_user_need_not_login
@@ -298,8 +298,7 @@ def taskRegistCheck():
     except:
         return make_response(2)
     
-    deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
-    deadline_datetime = trans_datetime_serial(deadline_serial)
+    deadline_datetime = get_jst_datetime(deadline_year, deadline_month, deadline_day, is_day_final=True)
     deadline_ut = trans_datetime_ut(deadline_datetime)
     tasks = Task.query.filter_by(subject_id=subject_id, deadline_ut=deadline_ut).all()
     tasks_packs = []
@@ -363,8 +362,7 @@ def taskRegistNew():
         difficulty = data["difficulty"]
     except:
         return make_response(2)
-    deadline_serial = get_int_serial(deadline_year, deadline_month, deadline_day)
-    deadline_datetime = trans_datetime_serial(deadline_serial)
+    deadline_datetime = get_jst_datetime(deadline_year, deadline_month, deadline_day, is_day_final=True)
     deadline_ut = trans_datetime_ut(deadline_datetime)
     task_data = [user.id, subject_id, detail, summary, deadline_ut, difficulty]
     task_regist_data = [user.id, 1]
@@ -551,8 +549,7 @@ def getTimeTable():
     if user is None: 
         return make_response(4)
     day = ["mon", "tue", "wed", "thu", "fri", None, None]
-    tz = pytz.timezone('Asia/Tokyo')
-    now = datetime.now(tz)
+    now = datetime.now(jst_tz)
     day = day[now.weekday()]
     if day != None:
         takens = Taken.query.filter_by(user_id=user.id).all()
